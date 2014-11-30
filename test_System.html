@@ -1,0 +1,64 @@
+<html><body>
+<script type="text/javascript" src="math.js"></script>
+<script type="text/javascript" src="system.js"></script>
+<script type="text/javascript">
+
+// Demonstration script starts here
+var S = Object.create(System);  // Lotka-Volterra predator/prey 
+// load math.js
+S.addSpecies('X0', 1, 'Glucose');
+S.addSpecies('X1', 1, 'Glucagon');
+S.addSpecies('X2', 1, 'Insulin');
+S.addParameter('DELTA', .1, 'hormonal delay');
+S.addParameter('INPUT', 1, 'glucose input from tissues');
+S.addParameter('ETA', .1, 'glucose output, ie, excretion');
+S.addParameter('A', 1, 'glucagon sensitivity');
+S.addParameter('B', 1, 'insulin sensitivity');
+S.addParameter('K', 1, 'glucose input from tissues');
+
+//S.addRule('g', 'g(S,K)=S/(S+K)', 'Hyperbolic');
+S.addRule('h', 'h(a,b,k) = k - a - b', 'self-inhibition');
+S.addRule('alpha', 'alpha(g)=1/g', 'agonist function');
+S.addRule('beta', 'beta(g)=g', 'antagonist function');
+S.addRule('dX0', 'dX0(G, A, B, input, a, b, eta) = input + a*A - b*B - eta * G');
+S.addRule('dX1', 'dX1(G, A, B, k, delta) = A * ( alpha(G)*h(A,B,k) - delta )');
+S.addRule('dX2', 'dX2(G, A, B, k, delta) = B * ( beta(G)*h(A,B,k) - delta )');
+
+//S.species['X0'].rate_law.set('A * ( 1 / G * h - delta )')
+//S.species['X1'].rate_law.set('B * ( G * h - delta )')
+//S.species['X2'].rate_law.set('input + alpha * A - beta * B - eta * G')
+
+console.log(S.parser.eval('X1'));
+console.log(S.parser.eval('X2'));
+console.log(S.parser.eval('dX0(X0,X1,X2,INPUT,A,B,ETA)'));
+console.log(S.parser.eval('dX1(X0,X1,X2,K,DELTA)'));
+console.log(S.parser.eval('dX2(X0,X1,X2,K,DELTA)'));
+
+//console.log(S.parser.eval(S.rules['dX1'].expression));
+//console.log(S.parser.eval(S.rules['dX2'].expression));
+
+//console.log(S.parser.eval(S.rules['dX0'].expression));
+//console.log(S.parser.eval(S.rules['dX1'].expression));
+//console.log(S.parser.eval(S.rules['dX2'].expression));
+
+S.parser.eval(S.rules['h'].expression);
+S.parser.eval(S.rules['alpha'].expression);
+S.parser.eval(S.rules['beta'].expression);
+S.parser.eval(S.rules['dX0'].expression);
+S.parser.eval(S.rules['dX1'].expression);
+S.parser.eval(S.rules['dX2'].expression);
+console.log(S.rules['dX0'].expression);
+
+
+
+var node = math.parse('g()');
+node.traverse(function (node, path, parent) {
+  switch (node.type) {
+    case 'OperatorNode': console.log(node.type, node.op);    break;
+    case 'ConstantNode': console.log(node.type, node.value); break;
+    case 'SymbolNode':   console.log(node.type, node.name);  break;
+    default:             console.log(node.type);
+  }
+});
+
+</script>

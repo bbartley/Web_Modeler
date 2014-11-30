@@ -16,7 +16,8 @@ f = function(t,x) {
           x[0]*(28-x[2])-x[1],
           x[0]*x[1]-(8/3)*x[2]];
 };
-var t0 = 0,
+var N = 3, // Dimensionality of system
+	t0 = 0,
 	tf = 20,
 	events = 2000;
 sol = numeric.dopri(t0,tf,[-1,3,4],f,1e-6,2000);

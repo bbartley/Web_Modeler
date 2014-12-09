@@ -2,7 +2,7 @@
 // Requires math.js
 function Species(initial_value, name) {
 	this.value = initial_value;
-	this.rate_laws = [];
+	this.rate_laws = {};
 	this.name = name;
 	}
 
@@ -84,9 +84,9 @@ function Interaction(system, name, species) {
 }
 	
 var System = {
-	species: [],
-	rules: [],
-	parameters: [],
+	species: {},
+	rules: {},
+	parameters: {},
 	interactions: {},
 	parser: math.parser(),
 	addSpecies: function(identifier, initial_value, name) {
@@ -113,15 +113,33 @@ var System = {
 		// arguments array should contain as many Symbols as the expression tree
 		var v_ids = this.interactions[name].variables();
 		var p_ids = this.interactions[name].parameters();
-		var symbol_table = [];
-		
-		//console.log(v_args, v_ids);
-		//console.log(p_args, p_ids);
+		var symbol_table = {};  // maps { Rule symbol : Interaction argument } 
+			
+		// Validate that v_args and p_args are valid Species and Parameters
+		for (var i_arg=0; i_arg < v_args.length; i_arg++) {
+			if (Object.keys(this.species).indexOf(v_args[i_arg]) == -1)  { 
+				console.log('addInteraction: Invalid Species argument');
+				return; 
+			}
+		}
+		for (var i_arg=0; i_arg < p_args.length; i_arg++) {
+			if (Object.keys(this.parameters).indexOf(p_args[i_arg]) == -1)  { 
+				console.log('addInteraction: Invalid Parameter argument');
+				return; 
+			}
+		}
 		
 		// Validate that all arguments were passed to the Interaction
-		if (v_args.length != v_ids.length) { return; }
-		if (p_args.length != p_ids.length) { return; }
+		if (v_args.length != v_ids.length) { 
+			console.log('addInteraction:  Expected variables ', v_ids, ' got ', v_args);
+			return; 
+		}
+		if (p_args.length != p_ids.length) { 
+			console.log('addInteraction:  Expected parameters', p_ids, ' got ', p_args);
+			return; 
+		}
 				
+		
 		// map variable arguments to variable symbols in expression tree
 		// in order which rules were assigned
 		for (var i_arg=0; i_arg < v_args.length; i_arg++) {
@@ -160,16 +178,20 @@ var System = {
 			console.log('Rule:', r_id );
 			this.interactions[name].rules[r_id].toString()
 
+			// Make a copy of the Rule's expression syntax tree so we can overwrite
+			// variables and parameters with the Interaction's arguments.  In effect,
+			// this instantiates the Interaction
+			var expression_tree = this.interactions[name].rules[r_id].expression.clone();
 			// Filter SymbolNodes out of the syntax tree
-			var nodes = this.interactions[name].rules[r_id].expression.filter(function (node) { 
+			var nodes = expression_tree.filter(function (node) { 
 				return (node.type == 'SymbolNode') 
 			});
 			
 			for (i_n = 0; i_n < nodes.length; i_n++) {
 				var node = nodes[i_n];
 				console.log('Substituting:', i_n, nodes.length, nodes[i_n].type)
-				// Look up the expression syntax node in the Interaction's local symbol table
-				// then substitute in the argument symbol 
+				// Look up the argument symbol in the Interaction's local symbol table
+				// then substitute in the expression syntax tree
 				if (Object.keys(symbol_table).indexOf(node.name) != -1) {
 					console.log(node.name, symbol_table[node.name]);
 					node.name = symbol_table[node.name];

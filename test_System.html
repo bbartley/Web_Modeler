@@ -6,59 +6,60 @@
 // Demonstration script starts here
 var S = Object.create(System);  // Lotka-Volterra predator/prey 
 // load math.js
-S.addSpecies('X0', 1, 'Glucose');
-S.addSpecies('X1', 1, 'Glucagon');
-S.addSpecies('X2', 1, 'Insulin');
-S.addParameter('DELTA', .1, 'hormonal delay');
-S.addParameter('INPUT', 1, 'glucose input from tissues');
-S.addParameter('ETA', .1, 'glucose output, ie, excretion');
-S.addParameter('A', 1, 'glucagon sensitivity');
-S.addParameter('B', 1, 'insulin sensitivity');
-S.addParameter('K', 1, 'glucose input from tissues');
+S.addSpecies('X0', 1, 'hare');
+S.addSpecies('X1', 1, 'fox');
+S.addSpecies('X2', 1, 'eagle');
+S.addParameter('alpha', 1., 'prey specific growth rate')
+S.addParameter('beta', .01, 'predation rate constant')
+S.addParameter('gamma', 1., 'trophic efficiency')
+S.addParameter('delta', 1., 'predator death rate constant')
+//S.add_function('f', 'alpha * P0', 'prey growth rate')
+//S.add_function('g', 'beta * P0 * P1', 'functional response')
+//S.add_function('h', 'gamma * g', 'numerical_response')
+//S.add_function('i', 'delta * P1', 'predator death')
+//S.species['P0'].rate_law.set('f - g')
+//S.species['P1'].rate_law.set('h - i')
+//S.addParameter('DELTA', .1, 'hormonal delay');
+
 
 //S.addRule('g', 'g(S,K)=S/(S+K)', 'Hyperbolic');
-S.addRule('h', 'h(a,b,k) = k - a - b', 'self-inhibition');
-S.addRule('alpha', 'alpha(g)=1/g', 'agonist function');
-S.addRule('beta', 'beta(g)=g', 'antagonist function');
-S.addRule('dX0', 'dX0(G, A, B, input, a, b, eta) = input + a*A - b*B - eta * G');
-S.addRule('dX1', 'dX1(G, A, B, k, delta) = A * ( alpha(G)*h(A,B,k) - delta )');
-S.addRule('dX2', 'dX2(G, A, B, k, delta) = B * ( beta(G)*h(A,B,k) - delta )');
+//S.addRule('h', 'h(a,b,k) = k - a - b', 'self-inhibition');
+//S.addRule('alpha', 'alpha(g)=1/g', 'agonist function');
+//S.addRule('beta', 'beta(g)=g', 'antagonist function');
+//S.addRule('dX0', 'dX0(G, A, B, input, a, b, eta) = input + a*A - b*B - eta * G');
+//S.addRule('dX1', 'dX1(G, A, B, k, delta) = A * ( alpha(G)*h(A,B,k) - delta )');
+//S.addRule('dX2', 'dX2(G, A, B, k, delta) = B * ( beta(G)*h(A,B,k) - delta )');
 
 //S.species['X0'].rate_law.set('A * ( 1 / G * h - delta )')
 //S.species['X1'].rate_law.set('B * ( G * h - delta )')
 //S.species['X2'].rate_law.set('input + alpha * A - beta * B - eta * G')
 
-console.log(S.parser.eval('X1'));
-console.log(S.parser.eval('X2'));
-console.log(S.parser.eval('dX0(X0,X1,X2,INPUT,A,B,ETA)'));
-console.log(S.parser.eval('dX1(X0,X1,X2,K,DELTA)'));
-console.log(S.parser.eval('dX2(X0,X1,X2,K,DELTA)'));
+//console.log(S.parser.eval('X1'));
+//console.log(S.parser.eval('X2'));
+//console.log(S.parser.eval('dX0(X0,X1,X2,INPUT,A,B,ETA)'));
+//console.log(S.parser.eval('dX1(X0,X1,X2,K,DELTA)'));
+//console.log(S.parser.eval('dX2(X0,X1,X2,K,DELTA)'));
 
-//console.log(S.parser.eval(S.rules['dX1'].expression));
-//console.log(S.parser.eval(S.rules['dX2'].expression));
+S.defineInteraction('predator-prey', ['A', 'B']);
+S.interactions['predator-prey'].rules['A'].set('-k*A*B', 'functional response');
+S.interactions['predator-prey'].rules['B'].set('-k*e*A*B', 'functional response');
 
-//console.log(S.parser.eval(S.rules['dX0'].expression));
-//console.log(S.parser.eval(S.rules['dX1'].expression));
-//console.log(S.parser.eval(S.rules['dX2'].expression));
+//S.interactions['predator-prey'].addRule('A', '-k*A*B', 'functional response');
+//S.interactions['predator-prey'].addRule('B', 'k*e*A*B', 'numerical response');
+//S.defineInteraction('exponential growth');
+//S.interactions['exponential growth'].addRule('A', 'k*A', 'exponential growth');
+//S.defineInteraction('first-order decay');
+//S.interactions['first-order decay'].addRule('A', '-k*A', 'first order decay');
 
-S.parser.eval(S.rules['h'].expression);
-S.parser.eval(S.rules['alpha'].expression);
-S.parser.eval(S.rules['beta'].expression);
-S.parser.eval(S.rules['dX0'].expression);
-S.parser.eval(S.rules['dX1'].expression);
-S.parser.eval(S.rules['dX2'].expression);
-console.log(S.rules['dX0'].expression);
-
-
-
-var node = math.parse('g()');
-node.traverse(function (node, path, parent) {
-  switch (node.type) {
-    case 'OperatorNode': console.log(node.type, node.op);    break;
-    case 'ConstantNode': console.log(node.type, node.value); break;
-    case 'SymbolNode':   console.log(node.type, node.name);  break;
-    default:             console.log(node.type);
-  }
-});
+S.addInteraction('predator-prey', ['X0','X1'], ['beta', 'gamma']);
+S.interactions['predator-prey']
+//S.addInteraction('exponential-growth', ['X0'], ['alpha']);
+//S.addInteraction('first-order decay', ['X1'], ['delta']);
+//var node = math.parse('g()');
+//node.traverse(function (node, path, parent) {
+//   if (node.type == 'SymbolNode') {
+//      console.log(node.name);
+//   }
+//});
 
 </script>

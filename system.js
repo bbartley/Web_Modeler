@@ -2,7 +2,7 @@
 // Requires math.js
 function Species(initial_value, name) {
 	this.value = initial_value;
-	this.rate_laws = {};
+	this.rate_law = new Rule();
 	this.name = name;
 	}
 
@@ -182,11 +182,12 @@ var System = {
 			// variables and parameters with the Interaction's arguments.  In effect,
 			// this instantiates the Interaction
 			var expression_tree = this.interactions[name].rules[r_id].expression.clone();
+			var expression_tree = math.parse(this.interactions[name].rules[r_id].expression.toString());
 			// Filter SymbolNodes out of the syntax tree
 			var nodes = expression_tree.filter(function (node) { 
 				return (node.type == 'SymbolNode') 
 			});
-			
+
 			for (i_n = 0; i_n < nodes.length; i_n++) {
 				var node = nodes[i_n];
 				console.log('Substituting:', i_n, nodes.length, nodes[i_n].type)
@@ -197,8 +198,22 @@ var System = {
 					node.name = symbol_table[node.name];
 				}
 			}
+			console.log('Substituted Rule:', r_id );
 			this.interactions[name].rules[r_id].toString();
+			
+			var s_id = symbol_table[r_id]; // Get Species id corresponding to this Rule
+			console.log(s_id, this.species[s_id].name);
+
+			if (this.species[s_id].rate_law.expression != null) {
+				this.species[s_id].rate_law.expression = new math.expression.node.OperatorNode('+',
+					'add',[this.species[s_id].rate_law.expression, expression_tree]);				
+			} else {
+				this.species[s_id].rate_law.expression = expression_tree.clone();
+			}
+			this.species[s_id].rate_law.toString();
 		}
+	
+		
 		// I tested mathjs library's transform function to replace nodes, but it didn't work
 		//console.log(rule_id);
 		//console.log(this.interactions[name].rules[rule_id].toString());
@@ -218,7 +233,6 @@ var System = {
 			//console.log(this.interactions[name]);
 			//console.log(this.interactions[name].rules[rule_id].toString());
 		//}
-		
 	}
 	//simulate: function(){},
 	//create_model: function() {}

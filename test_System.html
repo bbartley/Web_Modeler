@@ -1,4 +1,5 @@
 <html><body>
+<script type="text/javascript" src="numeric-1.2.6.js"></script>
 <script type="text/javascript" src="math.js"></script>
 <script type="text/javascript" src="system.js"></script>
 <script type="text/javascript">
@@ -40,9 +41,9 @@ S.addParameter('delta', 1., 'predator death rate constant')
 //console.log(S.parser.eval('dX1(X0,X1,X2,K,DELTA)'));
 //console.log(S.parser.eval('dX2(X0,X1,X2,K,DELTA)'));
 
-S.defineInteraction('predator-prey', ['A', 'B']);
-S.interactions['predator-prey'].rules['A'].set('-k*A*B', 'functional response');
-S.interactions['predator-prey'].rules['B'].set('-k*e*A*B', 'functional response');
+//S.defineInteraction('predator-prey', ['A', 'B']);
+//S.interactions['predator-prey'].rules['A'].set('-k*A*B', 'functional response');
+//S.interactions['predator-prey'].rules['B'].set('-k*e*A*B', 'functional response');
 
 //S.interactions['predator-prey'].addRule('A', '-k*A*B', 'functional response');
 //S.interactions['predator-prey'].addRule('B', 'k*e*A*B', 'numerical response');
@@ -51,11 +52,16 @@ S.interactions['predator-prey'].rules['B'].set('-k*e*A*B', 'functional response'
 //S.defineInteraction('first-order decay');
 //S.interactions['first-order decay'].addRule('A', '-k*A', 'first order decay');
 
-S.addInteraction('predator-prey', ['X0','X1'], ['beta', 'gamma']);
-S.addInteraction('predator-prey', ['X1','X2'], ['beta', 'gamma']);
+//S.addInteraction('predator-prey', ['X0','X1'], ['beta', 'gamma']);
+//S.addInteraction('predator-prey', ['X1','X2'], ['beta', 'gamma']);
 
-S.interactions['predator-prey']
+//S.interactions['predator-prey']
 //S.addInteraction('exponential-growth', ['X0'], ['alpha']);
+//S.addInteraction('exponential-growth', ['X0'], ['alpha']);
+S.defineInteraction('first-order test', ['A']);
+S.interactions['first-order test'].rules['A'].set('1-a*A');
+S.addInteraction('first-order test', ['X0'], ['beta']);
+S.simulate()
 //S.addInteraction('first-order decay', ['X1'], ['delta']);
 //var node = math.parse('g()');
 //node.traverse(function (node, path, parent) {

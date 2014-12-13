@@ -4,13 +4,19 @@ function Species(initial_value, name) {
 	this.value = initial_value;
 	this.rate_law = new Rule();
 	this.name = name;
+	this.indexOf = function(system, s_id) {
+		return Object.keys(system.species).indexOf(s_id);
 	}
+	this.getVariable = function(system) {
+		return;
+	}
+}
 
 // Rule contains a mathematical expression describing how a species' rate law will change 
 // when an instance of a parent Interaction is added to a System
 function Rule() {
 	this.name = null; // A name or description for this rule, eg, "Exponential Growth"
-	this.expression = null; // A mathjs node at the root of the syntax tree
+	this.expression = null; // A mathjs node at the root of the syntax tree.  Should be Privileged property
 	
 	// Parses expression into a syntax tree, and gives name to the rule
 	this.set = function(expression, name) {
@@ -20,7 +26,7 @@ function Rule() {
 	this.toString = function() {
 		console.log(this.expression.toString());
 		}
-	}
+}
 
 function Parameter(value, name) {
 	this.value = value;
@@ -88,9 +94,16 @@ var System = {
 	rules: {},
 	parameters: {},
 	interactions: {},
+	symbol_table: [], // Symbol map should not be accessed directly, it is auto-constructed.  Make privileged?
+	model: [],  // Also privileged.  Compiled rate_law expressions for each Species
 	parser: math.parser(),
 	addSpecies: function(identifier, initial_value, name) {
+		// Create new Species and register it in the System
 		this.species[identifier] = new Species(initial_value, name);
+		//this.species[identifier] = new Species(initial_value, name);
+		// Register the Species' instance number in System's global symbol map
+		// This instance number will map to a state variable index in the simulation
+		this.symbol_table[Object.keys(this.species).length] = identifier;
 		this.parser.eval(identifier + '=' + initial_value);
 	},
 	addParameter: function(identifier, value, name) {
@@ -233,8 +246,63 @@ var System = {
 			//console.log(this.interactions[name]);
 			//console.log(this.interactions[name].rules[rule_id].toString());
 		//}
+	},
+	simulate: function() {
+		var initial_values = [];
+		var i_sp = 0;
+		for (sp in this.species) {
+			// Compile the rate_law for this species and attach to the System.model field
+			this.model[i_sp] = math.compile(this.species[sp].rate_law.expression);
+			// Add this Species' initial value to the initial values vector
+			initial_values[i_sp] = this.species[sp].initial_value;
+			i_sp++;
+			// Maybe not necessary, since initial values are already declared in the System.parser
+			// upon Species creation
+			
+			// Substitute symbols in and compile
+			// @TODO:  Try to get the following working:
+			// var expression_tree = this.interactions[name].rules[r_id].expression.clone();
+			// var new_expression_tree = math.parse(this.species[sp].rate_law.expression.toString());
+			// Not necessary to do this either, expression tree has already been substituted
+			// with simulation variables from the System.symbol_table when an Interaction was
+			// instantiated
+
+			//console.log('Substituted Rule:', r_id );
+			//this.interactions[name].rules[r_id].toString();
+		}
+		var sol = this.odeInt(initial_values, 0, 0.1, 100);
+	},
+	dY: function(t, y) {
+		var simulation_vars = Object.keys(this.species);
+		var dy = [];
+		// Copy values from the javascript simulation variable
+		// into the System parser scope
+		// @TODO: More efficient to allocate array dimensions first?
+		for (var i_y = 0; i_y < y.length; i_y++) {
+			this.parser.eval(simulation_vars[i_y] + "=" + y[i_y])
+		}
+		// Calculate the differentials in the System parser scope,
+		// then copy back to the javascript simulation variable
+		for (var i_y = 0; i_y < simulation_vars.length; i_y++) {
+			dy[i_y] = this.parser.eval(this.model[i_y]);
+		}
+		return dy;
+	},
+	odeInt: function(y0, t0, t_step, t_f) {
+		var n_intervals = (t_f - t_0) / t_step + 1;
+		var t = numeric.linspace(t0, t_f, n_intervals);
+		var yf = []; // vector of state variables after a time step
+		var Y = []; // cumulative state history over entire simulation
+		for (n = 0; n <= n_intervals; n++) {
+			var dy = this.dY(t, y0);
+			for (var i_y = 0; i_y < y0.length; i_y++) {
+				yf[i_y] = y0[i_y] + dy[i_y] * t_step;
+			}
+			Y.push(yf);
+			y0 = yf;
+			console.log(n, yf);
+		}
+		return { t: t, y: Y }; 
 	}
-	//simulate: function(){},
-	//create_model: function() {}
 }	
 

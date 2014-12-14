@@ -2,6 +2,8 @@
 <script type="text/javascript" src="numeric-1.2.6.js"></script>
 <script type="text/javascript" src="math.js"></script>
 <script type="text/javascript" src="system.js"></script>
+<script type="text/javascript" src="flot/jquery.js"></script>
+<script type="text/javascript" src="flot/jquery.flot.js"></script>
 <script type="text/javascript">
 
 // Demonstration script starts here
@@ -61,7 +63,15 @@ S.addParameter('delta', 1., 'predator death rate constant')
 S.defineInteraction('first-order test', ['A']);
 S.interactions['first-order test'].rules['A'].set('1-a*A');
 S.addInteraction('first-order test', ['X0'], ['beta']);
-S.simulate()
+sol = S.simulate();
+t = sol.t;
+y = numeric.transpose(sol.y);
+p = [numeric.transpose([t, y[0]])];
+$(function() {
+
+	$.plot("#placeholder", p);
+
+});
 //S.addInteraction('first-order decay', ['X1'], ['delta']);
 //var node = math.parse('g()');
 //node.traverse(function (node, path, parent) {
@@ -71,3 +81,4 @@ S.simulate()
 //});
 
 </script>
+<div id="placeholder" style="width:600px;height:300px"></div>

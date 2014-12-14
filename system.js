@@ -100,11 +100,13 @@ var System = {
 	addSpecies: function(identifier, initial_value, name) {
 		// Create new Species and register it in the System
 		this.species[identifier] = new Species(initial_value, name);
+		this.model[Object.keys(this.species).length] = null;
 		//this.species[identifier] = new Species(initial_value, name);
 		// Register the Species' instance number in System's global symbol map
 		// This instance number will map to a state variable index in the simulation
-		this.symbol_table[Object.keys(this.species).length] = identifier;
-		this.parser.eval(identifier + '=' + initial_value);
+		// Deprecated
+		// this.symbol_table[Object.keys(this.species).length] = identifier;
+		// this.parser.eval(identifier + '=' + initial_value);
 	},
 	addParameter: function(identifier, value, name) {
 		this.parameters[identifier] = new Parameter(value, name);
@@ -250,11 +252,20 @@ var System = {
 	simulate: function() {
 		var initial_values = [];
 		var i_sp = 0;
-		for (sp in this.species) {
+		for (var sp in this.species) {
 			// Compile the rate_law for this species and attach to the System.model field
-			this.model[i_sp] = math.compile(this.species[sp].rate_law.expression);
+			console.log("Compiling rate law for species", sp, i_sp);
+			if (this.species[sp].rate_law.expression != null) {
+				console.log(sp, 'Rate law:');
+				this.species[sp].rate_law.toString();
+				this.model[i_sp] = this.species[sp].rate_law.expression.compile(math)
+			} else {
+				// @TODO:  What to do if a rate law for a species has not been defined?
+				// For now just assume that its rate of change is zero
+				this.model[i_sp] = math.compile("0");
+			}
 			// Add this Species' initial value to the initial values vector
-			initial_values[i_sp] = this.species[sp].initial_value;
+			initial_values[i_sp] = this.species[sp].value;
 			i_sp++;
 			// Maybe not necessary, since initial values are already declared in the System.parser
 			// upon Species creation
@@ -270,39 +281,53 @@ var System = {
 			//console.log('Substituted Rule:', r_id );
 			//this.interactions[name].rules[r_id].toString();
 		}
-		var sol = this.odeInt(initial_values, 0, 0.1, 100);
+		console.log('Initial values:', initial_values);
+		//sol = numeric.dopri(0,100,initial_values,this.dY,1e-6,2000);
+		//return sol;
+		return this.odeInt(initial_values, 0, 0.1, 100);
 	},
+	// @TODO:  pass the System as an argument to dY so that its properties can be accessed
+	// when numeric.dopri invokes dY as a callback, changing the context for 'this' object
 	dY: function(t, y) {
-		var simulation_vars = Object.keys(this.species);
+		//var simulation_vars = Object.keys(this.species);
+		var species_ids = Object.keys(this.species);
 		var dy = [];
-		// Copy values from the javascript simulation variable
-		// into the System parser scope
+		var scope = {};
+		// Construct a scope object by mapping the current values of the javascript simulation variable
+		// with the corresponding variable identifier in the System scope (ie, the species id)
 		// @TODO: More efficient to allocate array dimensions first?
 		for (var i_y = 0; i_y < y.length; i_y++) {
-			this.parser.eval(simulation_vars[i_y] + "=" + y[i_y])
+			//this.parser.eval(simulation_vars[i_y] + "=" + y[i_y])
+			scope[species_ids[i_y]] = y[i_y];
+		}
+		for (p in this.parameters) {
+			scope[p] = this.parameters[p].value;
 		}
 		// Calculate the differentials in the System parser scope,
 		// then copy back to the javascript simulation variable
-		for (var i_y = 0; i_y < simulation_vars.length; i_y++) {
-			dy[i_y] = this.parser.eval(this.model[i_y]);
+		for (var i_y = 0; i_y < y.length; i_y++) {
+			//dy[i_y] = this.parser.eval(this.model[i_y]);
+			dy[i_y] = this.model[i_y].eval(scope);
 		}
 		return dy;
 	},
-	odeInt: function(y0, t0, t_step, t_f) {
-		var n_intervals = (t_f - t_0) / t_step + 1;
-		var t = numeric.linspace(t0, t_f, n_intervals);
+	odeInt: function(y0, t0, t_step, tf) {
+		var n_intervals = (tf - t0) / t_step;
+		var t = numeric.linspace(t0, tf, n_intervals);
 		var yf = []; // vector of state variables after a time step
-		var Y = []; // cumulative state history over entire simulation
-		for (n = 0; n <= n_intervals; n++) {
+		var Y = [ y0 ]; // cumulative state history over entire simulation
+		for (n = 1; n <= n_intervals; n++) {
 			var dy = this.dY(t, y0);
+			// Iterate over each state variable and integrate over a single time step
 			for (var i_y = 0; i_y < y0.length; i_y++) {
 				yf[i_y] = y0[i_y] + dy[i_y] * t_step;
 			}
-			Y.push(yf);
+			Y[n] = yf.slice();  // Slice is necessary to copy array by value rather than copy by reference
 			y0 = yf;
-			console.log(n, yf);
 		}
-		return { t: t, y: Y }; 
+		sol = { t: t, y: Y };
+		return sol;
 	}
+
 }	
 

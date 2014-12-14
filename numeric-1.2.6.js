@@ -2882,10 +2882,10 @@ numeric.Dopri.prototype.at = function at(x) {
     return this._at(x,i);
 }
 
-numeric.dopri = function dopri(x0,x1,y0,f,tol,maxit,event) {
+numeric.dopri = function dopri(x0,x1,y0,f,tol,maxit,event, params) {
     if(typeof tol === "undefined") { tol = 1e-6; }
     if(typeof maxit === "undefined") { maxit = 1000; }
-    var xs = [x0], ys = [y0], k1 = [f(x0,y0)], k2,k3,k4,k5,k6,k7, ymid = [];
+    var xs = [x0], ys = [y0], k1 = [f(x0,y0,params)], k2,k3,k4,k5,k6,k7, ymid = [];
     var A2 = 1/5;
     var A3 = [3/40,9/40];
     var A4 = [44/45,-56/15,32/9];
@@ -2913,13 +2913,13 @@ numeric.dopri = function dopri(x0,x1,y0,f,tol,maxit,event) {
     while(x0<x1 && it<maxit) {
         ++it;
         if(x0+h>x1) h = x1-x0;
-        k2 = f(x0+c[0]*h,                add(y0,mul(   A2*h,k1[i])));
-        k3 = f(x0+c[1]*h,            add(add(y0,mul(A3[0]*h,k1[i])),mul(A3[1]*h,k2)));
-        k4 = f(x0+c[2]*h,        add(add(add(y0,mul(A4[0]*h,k1[i])),mul(A4[1]*h,k2)),mul(A4[2]*h,k3)));
-        k5 = f(x0+c[3]*h,    add(add(add(add(y0,mul(A5[0]*h,k1[i])),mul(A5[1]*h,k2)),mul(A5[2]*h,k3)),mul(A5[3]*h,k4)));
-        k6 = f(x0+c[4]*h,add(add(add(add(add(y0,mul(A6[0]*h,k1[i])),mul(A6[1]*h,k2)),mul(A6[2]*h,k3)),mul(A6[3]*h,k4)),mul(A6[4]*h,k5)));
+        k2 = f(x0+c[0]*h,                add(y0,mul(   A2*h,k1[i])), params);
+        k3 = f(x0+c[1]*h,            add(add(y0,mul(A3[0]*h,k1[i])),mul(A3[1]*h,k2)), params);
+        k4 = f(x0+c[2]*h,        add(add(add(y0,mul(A4[0]*h,k1[i])),mul(A4[1]*h,k2)),mul(A4[2]*h,k3)), params);
+        k5 = f(x0+c[3]*h,    add(add(add(add(y0,mul(A5[0]*h,k1[i])),mul(A5[1]*h,k2)),mul(A5[2]*h,k3)),mul(A5[3]*h,k4)), params);
+        k6 = f(x0+c[4]*h,add(add(add(add(add(y0,mul(A6[0]*h,k1[i])),mul(A6[1]*h,k2)),mul(A6[2]*h,k3)),mul(A6[3]*h,k4)),mul(A6[4]*h,k5)), params);
         y1 = add(add(add(add(add(y0,mul(k1[i],h*b[0])),mul(k3,h*b[2])),mul(k4,h*b[3])),mul(k5,h*b[4])),mul(k6,h*b[5]));
-        k7 = f(x0+h,y1);
+        k7 = f(x0+h,y1,params);
         er = add(add(add(add(add(mul(k1[i],h*e[0]),mul(k3,h*e[2])),mul(k4,h*e[3])),mul(k5,h*e[4])),mul(k6,h*e[5])),mul(k7,h*e[6]));
         if(typeof er === "number") erinf = abs(er);
         else erinf = norminf(er);
@@ -2980,7 +2980,7 @@ numeric.dopri = function dopri(x0,x1,y0,f,tol,maxit,event) {
                     }
                 }
                 y1 = ret._at(0.5*(x0+xi),i-1);
-                ret.f[i] = f(xi,yi);
+                ret.f[i] = f(xi,yi,params);
                 ret.x[i] = xi;
                 ret.y[i] = yi;
                 ret.ymid[i-1] = y1;

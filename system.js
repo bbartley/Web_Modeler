@@ -282,14 +282,16 @@ var System = {
 			//this.interactions[name].rules[r_id].toString();
 		}
 		console.log('Initial values:', initial_values);
-		//sol = numeric.dopri(0,100,initial_values,this.dY,1e-6,2000);
-		//return sol;
-		return this.odeInt(initial_values, 0, 0.1, 100);
+		sol = numeric.dopri(0,100,initial_values,this.dY,1e-6,2000, function() {return -1}, [
+		"test"]);
+		return sol;
+		//return this.odeInt(initial_values, 0, 0.1, 100);
 	},
 	// @TODO:  pass the System as an argument to dY so that its properties can be accessed
 	// when numeric.dopri invokes dY as a callback, changing the context for 'this' object
-	dY: function(t, y) {
+	dY: function(t, y, params) {
 		//var simulation_vars = Object.keys(this.species);
+		console.log(params);
 		var species_ids = Object.keys(this.species);
 		var dy = [];
 		var scope = {};

@@ -283,16 +283,19 @@ var System = {
 		}
 		console.log('Initial values:', initial_values);
 		sol = numeric.dopri(0,100,initial_values,this.dY,1e-6,2000, function() {return -1}, [
-		"test"]);
+		this]);
 		return sol;
 		//return this.odeInt(initial_values, 0, 0.1, 100);
 	},
 	// @TODO:  pass the System as an argument to dY so that its properties can be accessed
 	// when numeric.dopri invokes dY as a callback, changing the context for 'this' object
 	dY: function(t, y, params) {
+		// @TODO:  add validation step here.  Check for valid System object passed in params argument
+		system = params[0];
 		//var simulation_vars = Object.keys(this.species);
 		console.log(params);
-		var species_ids = Object.keys(this.species);
+		//var species_ids = Object.keys(this.species);
+		var species_ids = Object.keys(system.species);
 		var dy = [];
 		var scope = {};
 		// Construct a scope object by mapping the current values of the javascript simulation variable
@@ -302,14 +305,17 @@ var System = {
 			//this.parser.eval(simulation_vars[i_y] + "=" + y[i_y])
 			scope[species_ids[i_y]] = y[i_y];
 		}
-		for (p in this.parameters) {
-			scope[p] = this.parameters[p].value;
+		for (p in system.parameters) {
+			//scope[p] = this.parameters[p].value;
+			scope[p] = system.parameters[p].value;
 		}
+		console.log('Scope:',scope);
 		// Calculate the differentials in the System parser scope,
 		// then copy back to the javascript simulation variable
 		for (var i_y = 0; i_y < y.length; i_y++) {
 			//dy[i_y] = this.parser.eval(this.model[i_y]);
-			dy[i_y] = this.model[i_y].eval(scope);
+			//dy[i_y] = this.model[i_y].eval(scope);
+			dy[i_y] = system.model[i_y].eval(scope);
 		}
 		return dy;
 	},
@@ -327,7 +333,7 @@ var System = {
 			Y[n] = yf.slice();  // Slice is necessary to copy array by value rather than copy by reference
 			y0 = yf;
 		}
-		sol = { t: t, y: Y };
+		sol = { x: t, y: Y };  // Solution is structured the same as that returned by numeric.dopri
 		return sol;
 	}
 

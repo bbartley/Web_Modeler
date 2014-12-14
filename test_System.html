@@ -64,7 +64,7 @@ S.defineInteraction('first-order test', ['A']);
 S.interactions['first-order test'].rules['A'].set('1-a*A');
 S.addInteraction('first-order test', ['X0'], ['beta']);
 sol = S.simulate();
-t = sol.t;
+t = sol.x;
 y = numeric.transpose(sol.y);
 p = [numeric.transpose([t, y[0]])];
 $(function() {
@@ -82,3 +82,4 @@ $(function() {
 
 </script>
 <div id="placeholder" style="width:600px;height:300px"></div>
+</body></html>

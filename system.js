@@ -1,9 +1,46 @@
-// Class definition for System
-// Requires math.js
+/** 
+Interactive web simulator
+@module System
+*/
+
+/** 
+A 'Species' is a state variable in a dynamic system.  It is left open
+to the user's interpretation whether a Species refers to a biochemical
+species or a biological species. Requires math.js
+@class Species
+@constructor
+@param {Number} initial_value The initial quantity of this Species at the beginning of a simulation.
+@param {String} name The identifier used to reference this Species object.
+*/
 function Species(initial_value, name) {
+
+	/**
+	The quantity of this Species at the "present" time in a real-time simulation
+	@property {Number} value
+	*/
 	this.value = initial_value;
+
+	/**
+	The rate law, represented by a Rule object, is an equation that describes 
+	the rate of change of a Species in a dynamic System.  The rate_law contains a mathematical 
+	expression that has been pre-parsed into a syntax tree.  The rate_law is compiled and
+	passed to the simulator
+	@property {Rule} rate_law
+	*/
 	this.rate_law = new Rule();
+
+	/**
+	A unique, descriptive identifier used to refer to the Species.  Examples are "R" or "rabbit"
+	@property {String} name
+	*/
 	this.name = name;
+
+	/**
+	An index used to match the Species to an internal state variable in the System equations
+	@method indexOf
+	@private
+	@return {Number} The integer index of the corresponding state variable in the System equations
+	*/
 	this.indexOf = function(system, s_id) {
 		return Object.keys(system.species).indexOf(s_id);
 	}
@@ -12,38 +49,123 @@ function Species(initial_value, name) {
 	}
 }
 
-// Rule contains a mathematical expression describing how a species' rate law will change 
-// when an instance of a parent Interaction is added to a System
+/** 
+A Rule object represents a mathematical expression which may be compiled with other Rules
+to compose even more complex mathematical expressions like equations.  
+Currently, a Species.rate_law is determined by compiling the expressions contained in Rule objects.
+The expression is treated like a term in the Species.rate_law. 
+@class Rule
+@constructor
+*/
 function Rule() {
-	this.name = null; // A name or description for this rule, eg, "Exponential Growth"
-	this.expression = null; // A mathjs node at the root of the syntax tree.  Should be Privileged property
+	/**
+	A name or description for this rule, eg, "Exponential Growth"
+	@property {String} name
+	*/
+	this.name = null;
 	
-	// Parses expression into a syntax tree, and gives name to the rule
+	/**
+	The mathematical expression that defines this Rule. This expression is 
+	already parsed into a syntax tree.  The expression property then points 
+	to the root Node of the syntax tree.
+	@property {Node} expression
+	@private
+	*/
+	this.expression = null;
+	
+	/**
+	Defines a Rule with the given name and associates it with the specified mathematical 
+	equation.  The Rule expression is automatically evaluated into a syntax tree.
+	@method set
+	@param {String} expression A mathematical expression, eg '-alpha * A'
+	@param {String} name The Rule name should match one of the member species in an Interaction.
+	*/
 	this.set = function(expression, name) {
 		this.expression = math.parse(expression);
 		this.name = name;
 	}
+	
+	/**
+	Print the Rule expression.
+	@method toString
+	*/
 	this.toString = function() {
 		console.log(this.expression.toString());
 		}
 }
 
+/**
+A Parameter is a mathematical constant that can be referenced in Rule expressions.
+@class Parameter
+@constructor
+@private
+@param {Number} value The numerical value of this mathematical constant
+@param {String} name A full descriptive name for this parameter, eg "temperature"
+*/
 function Parameter(value, name) {
+	/**
+	The numerical value of this mathematical constant
+	@property {Number} value
+	*/
 	this.value = value;
+
+	/**
+	The identifier used for this parameter, eg "T" for temperature
+	@property {String} name
+	*/
 	this.name = name;
 	}
 
-// An Interaction describes what happens when the given 'species', whether molecular or ecological, 
-// interact. The Interaction constructor also auto-constructs the child Rule objects 
-// The given 'species' array also identifies variable names scoped inside the Rules objects
+/**
+Interactions represent subsystem patterns within a larger System.
+Member 'species' of an Interaction are represented by variables that are
+locally scoped inside the Interaction (ie, the species variables can only be referenced
+through mathematical expressions contained in the child Rule objects).
+The Interaction describes mathematically what happens when members of the subsystem interact.
+Examples include a Michaelis-Menten enzyme reaction with member species 'E', 'S', and 'P',
+and a predator-prey interaction include member species 'Predator' and 'Prey'.
+A child Rule is automatically created for each variable in the Interaction.
+@class Interaction
+@constructor
+@param {System} system The parent System to which this Interaction will belong
+@param {String} name A name or description given to the Interaction
+@param {Array} species This list of species names lets the Interaction
+know which symbols in mathematical expressions are variables and which are parameters.
+A variable is created for each species listed.  Then a Rule comprising this Interaction 
+is created for each variable.  Ex:  For an Interaction describing the mass-action
+collision of two molecules described by k * A * B the variables are A & B
+*/
 function Interaction(system, name, species) {
+	/**
+	The parent system that this Interaction belongs to
+	@property {System} system
+	*/
+	this.system = system;
+	
+	/**
+	A name or description given to the Interaction
+	@property {String} name
+	*/
 	this.name = name; // name or description for the interaction, eg "Predator-prey", see "giveName"
-	this.system = system;  // parent system
-	this.rules = {};  // array of objects containing mathematical definitions for an interaction
+
+	/**
+	An Object containing all the Rules that comprise this Interaction.  There is usually one Rule
+	corresponding to each Species in the Interaction.  So an Interaction between two Species "A" & "B"
+	will have Rules "A" and "B".
+	@property {Object} rules
+	*/
+	this.rules = {};
 	//this.variables = [];  // variables parsed from rules and contained in this Interaction's local scope
 	//this.parameters = []; // parameters parsed from rules and contained in this Interaction's local scope
 
-	// @TODO use get variables() here, but doesn't seem to work inside a constructor function 
+	/**
+	Getter for variables in this Interaction.
+	TODO:  Perhaps this should be a property?  Tried using get variables() here, 
+	but doesn't seem to work inside a constructor function 
+	@method variables
+	@return {Array} Returns an array of all variable identifiers (and their corresponding Rules used 
+	to define this Interaction
+	*/
 	this.variables = function() {
 		return Object.keys(this.rules);
 	}
@@ -53,6 +175,11 @@ function Interaction(system, name, species) {
 	// It's inefficient to identify Parameters in the Rule's local scope this way,
 	// but given the small size of our Interactions in practice probably not a big deal
 	// We might consider forcing the user to specify the parameters when the Rule is defined
+	/**
+	Getter for parameters in this Interaction.
+	@method parameters
+	@return {Array} Returns an array of all parameters referenced in this Interaction
+	*/
 	this.parameters = function() {
 		var parameters = [];
 		var p_nodes = [];
@@ -75,9 +202,12 @@ function Interaction(system, name, species) {
 		return parameters;
 	}
 	
-	// Auto-construct a child Rule object for each species.
-	// Then register it in this Interaction's scope using the variables field
-	// This method is private and need not be called by the user
+	/**
+	Auto-construct a child Rule object for each species.
+	Then register it in this Interaction's scope using the variables field
+	@method addRule
+	@private
+	*/
 	this.addRule = function(variable) {
 		this.rules[variable] = new Rule();
 		}
@@ -88,15 +218,158 @@ function Interaction(system, name, species) {
 		this.addRule(species[s_id], null,  null);  
 		}
 }
+
+/**
+Simulation objects contain the results of a dynamic simulation of a model system.
+@class Simulation
+@constructor
+@param {Array} species An array that lists which Species were members of the System 
+when it was simulated
+@param {Object} solution An object returned by numeric.dopri ODE integrator
+*/
+function Simulation(species, solution) {
+	/**
+	The trajectory contains the dynamic time series for each species.
+	@property {Object} trajectory
+	*/
+    this.trajectory = {};
 	
+	/**
+	Contains the time points corresponding to the state trajectory.
+	@property {Array} time
+	*/
+	this.time = [];
+	if (species && solution) {
+		this.time = solution.x;
+		var y = numeric.transpose(solution.y)
+		for (i_sp = 0; i_sp < species.length; i_sp++) {
+			this.trajectory[species[i_sp]] = y[i_sp];
+		}
+		console.log(this.time);
+		console.log(this.trajectory);
+	}
+	
+	/**
+	Concatenate trajectories from two simulation objects. 
+	@method concat
+	@return {Simulation} A new Simulation object
+	*/
+	this.concat = function(other_simulation) {
+		// Find union of species identifiers in the simulations you are concatenating
+		var these_species = Object.keys(this.trajectory);
+		var those_species = Object.keys(other_simulation.trajectory);
+		var combined_species = these_species.concat(those_species).sort();
+		var union = [];
+		union[0] = these_species[0];
+		combined_species.reduce(function(sp1, sp2) { if (sp2 != sp1) union.push(sp2); return sp2 });
+		// Concatenate trajectories, while padding missing trajectory values with undefined
+		var concatenated_trajectory = {}
+		for (i_u in union) {
+			console.log(union[i_u], this.trajectory[union[i_u]], other_simulation.trajectory[union[i_u]]);
+			if (this.trajectory[union[i_u]] == undefined) {
+				concatenated_trajectory[union[i_u]] = Array(this.time.length);
+				concatenated_trajectory[union[i_u]] = concatenated_trajectory[union[i_u]].concat(other_simulation.trajectory[union[i_u]]);
+			} else if (other_simulation.trajectory[union[i_u]] == undefined) {
+				concatenated_trajectory[union[i_u]] = this.trajectory[union[i_u]];
+				concatenated_trajectory[union[i_u]] = concatenated_trajectory[union[i_u]].concat(Array(other_simulation.time.length));
+			} else {
+				concatenated_trajectory[union[i_u]] = this.trajectory[union[i_u]];
+				concatenated_trajectory[union[i_u]] = concatenated_trajectory[union[i_u]].concat(other_simulation.trajectory[union[i_u]]);
+			}
+		}	
+		// Concatenate independent variable / time vector
+		var tf = this.time[this.time.length-1];
+		var concatenated_time = this.time.concat(
+			other_simulation.time.map(function(t) {return t + tf;} ));
+		
+		concatenated_simulation = new Simulation(null, null);
+		concatenated_simulation.time = concatenated_time;
+		concatenated_simulation.trajectory = concatenated_trajectory;
+		return concatenated_simulation;
+	}
+	
+	/**
+	Plot Simulation trajectories.
+	@method plot
+	*/
+	this.plot = function() {
+		var species = Object.keys(this.trajectory);
+		var data = [];
+		for (i_sp in species) {
+			var series = numeric.transpose([this.time, this.trajectory[species[i_sp]]]);
+			data.push({data:series});
+		}
+		console.log(data);
+		var p = [numeric.transpose([this.time, this.trajectory[species[0]]])];
+		console.log(p);
+		$(function() { $.plot("#placeholder", data); });
+	}
+}
+
+/**
+System is the main class.  A System may represent a biochemical system or an ecological system that
+can be simulated.
+@class System
+*/
 var System = {
+	/**
+	Species objects belonging to a System may be referenced by name through the System.species property.
+	@property {Object} species
+	*/
 	species: {},
+
+	/**
+	Rule objects belonging to a System may be referenced by name through the System.rules property.
+	@property {Object} rules
+	*/
 	rules: {},
+
+	/**
+	Parameter objects belonging to a System may be referenced by name through the System.rules property.
+	@property {Object} parameters
+	*/
 	parameters: {},
+
+	/**
+	Interaction objects belonging to a System may be referenced by name through the System.interactions property.
+	@property {Object} interactions
+	*/
 	interactions: {},
-	symbol_table: [], // Symbol map should not be accessed directly, it is auto-constructed.  Make privileged?
-	model: [],  // Also privileged.  Compiled rate_law expressions for each Species
+	
+	/**
+	The symbol_table is used internally to map Species objects to their respective state variables 
+	when the System.model is compiled.
+	@property {Array} symbol_table
+	@private
+	*/
+	symbol_table: [],
+
+	/**
+	Compiled rate_law expressions for each Species.  Each array element contains a mathematical
+	expression that has been compiled using the mathjs library.
+	@property {Array} model
+	@private
+	*/
+	model: [],
+
+	/**
+	This property points to a Parser object from the mathjs library. It contains the global System 
+	symbol table used by a simulation to evaluate the rate laws that define a Species rate of change.
+	The parser scope contains identifiers for Parameter, Species, and Rule objects owned by the 
+	parent System.
+	@property {math.Parser} parser
+	@private
+	*/
 	parser: math.parser(),
+
+	/**
+	Auto-construct a new Species and register it in the System
+	@method addSpecies
+	@param {String} identifier A short-hand symbol or identifier used to reference the new Species object from
+	the parent System
+	@param {Number} initial_value The initial number or quantity of this Species present in the System
+	@param {String} name The full, descriptive name for the Species
+	*/
 	addSpecies: function(identifier, initial_value, name) {
 		// Create new Species and register it in the System
 		this.species[identifier] = new Species(initial_value, name);
@@ -108,6 +381,16 @@ var System = {
 		// this.symbol_table[Object.keys(this.species).length] = identifier;
 		// this.parser.eval(identifier + '=' + initial_value);
 	},
+
+	/**
+	Auto-construct a new Parameter and register it in the System
+	@method addParameter
+	@constructor
+	@param {String} identifier A shorthand identifier used to reference the new Parameter object 
+	in the parent System.
+	@param {Number} value A constant value for this Parameter
+	@param {String} name A full, descriptive name for the new Parameter
+	*/
 	addParameter: function(identifier, value, name) {
 		this.parameters[identifier] = new Parameter(value, name);
 		this.parser.eval(identifier + '=' + value);
@@ -120,10 +403,34 @@ var System = {
 		// this.parser.eval(expression);
 	// },
 
+	/**
+	Define a new Interaction definition and register the definition in the System.
+	@method defineInteraction
+	@constructor
+	@param {String} identifier A short-hand symbol or identifier used in mathematical expressions that
+	define the mathematical Rules that describe this dynamic System.  The identifier is also used 
+	to reference the new Parameter object in the parent System.
+	@param {Number} initial_value The initial number or quantity of this Species present in the System
+	@param {String} name The full, descriptive name for the Interaction
+	*/
 	defineInteraction:  function(name, species) {
 		this.interactions[name] = new Interaction(this, name, species);
 	},
 		
+	/**
+	Adds an instance of an Interaction to the System.  Local variables used in the Interaction
+	definition are overwritten with global System variables.  For example, a "predator-prey"
+	Interaction might be instantiated twice within a System, once for "fox" and "hare", and once
+	more for "eagle" and "hare".
+	@method addInteraction
+	@param {String} name The identifier used to retrieve the Interaction definition from the
+	parent System
+	@param {Array} v_args An array of Species identifiers.  This array specifies which 
+	Species identifiers to substitute in for the local variables used by this Interaction
+	@param {Array} p_args An array of Parameter identifiers.  This array specifies which 
+	Parameter identifiers to substitute in for the local parameters used by this Interaction
+	This allows one to pass in global system parameters.
+	*/
 	addInteraction: function(name, v_args, p_args) {
 		// arguments array should contain as many Symbols as the expression tree
 		var v_ids = this.interactions[name].variables();
@@ -249,8 +556,15 @@ var System = {
 			//console.log(this.interactions[name].rules[rule_id].toString());
 		//}
 	},
-	simulate: function() {
-		var initial_values = [];
+
+	/**
+	Simulate the System model.
+	@method simulate
+	@param {Number} t0 The initial time
+	@param {Number} tf The final time
+	*/
+	simulate: function(t0, tf) {
+    	var initial_values = [];
 		var i_sp = 0;
 		for (var sp in this.species) {
 			// Compile the rate_law for this species and attach to the System.model field
@@ -261,6 +575,7 @@ var System = {
 				this.model[i_sp] = this.species[sp].rate_law.expression.compile(math)
 			} else {
 				// @TODO:  What to do if a rate law for a species has not been defined?
+				// @TODO:  move to System constructor
 				// For now just assume that its rate of change is zero
 				this.model[i_sp] = math.compile("0");
 			}
@@ -282,25 +597,42 @@ var System = {
 			//this.interactions[name].rules[r_id].toString();
 		}
 		console.log('Initial values:', initial_values);
-		sol = numeric.dopri(0,100,initial_values,this.dY,1e-6,2000, function() {return -1}, [
+
+		var solution = numeric.dopri(t0,tf,initial_values,this.dY,1e-6,10000, function() {return -1}, [
 		this]);
-		return sol;
+		console.log(solution);
+		return new Simulation(Object.keys(this.species), solution);
 		//return this.odeInt(initial_values, 0, 0.1, 100);
 	},
+
 	// @TODO:  pass the System as an argument to dY so that its properties can be accessed
 	// when numeric.dopri invokes dY as a callback, changing the context for 'this' object
+	/**
+	The differential rates-of-change for all Species in a System.  The signature of the differential
+	function must match that expected by the ODE integrator or other simulation operator function.
+	The params argument is exploited to pass in a pre-compiled model from the outside. Thus the model 
+	equations do not have to be hard-coded inside the differential function and may be modified
+	on the fly in response to external events (from the GUI for example).
+	@method dy
+	@private
+	@param {Number} t A single float value corresponding to a particular time in a simulation
+	@param {Number} y An array of state variables.
+	@param {Array} params An array that can be used to pass other external information into
+	the differential function
+	@return Returns the rate-of-change for all Species in the System at time t
+	*/
 	dY: function(t, y, params) {
 		// @TODO:  add validation step here.  Check for valid System object passed in params argument
 		system = params[0];
 		//var simulation_vars = Object.keys(this.species);
-		console.log(params);
+		//console.log(params);
 		//var species_ids = Object.keys(this.species);
 		var species_ids = Object.keys(system.species);
 		var dy = [];
-		var scope = {};
 		// Construct a scope object by mapping the current values of the javascript simulation variable
 		// with the corresponding variable identifier in the System scope (ie, the species id)
 		// @TODO: More efficient to allocate array dimensions first?
+		var scope = {};
 		for (var i_y = 0; i_y < y.length; i_y++) {
 			//this.parser.eval(simulation_vars[i_y] + "=" + y[i_y])
 			scope[species_ids[i_y]] = y[i_y];
@@ -309,7 +641,8 @@ var System = {
 			//scope[p] = this.parameters[p].value;
 			scope[p] = system.parameters[p].value;
 		}
-		console.log('Scope:',scope);
+		//console.log('Scope:',scope);
+		
 		// Calculate the differentials in the System parser scope,
 		// then copy back to the javascript simulation variable
 		for (var i_y = 0; i_y < y.length; i_y++) {
@@ -319,6 +652,8 @@ var System = {
 		}
 		return dy;
 	},
+	
+	// Deprecated
 	odeInt: function(y0, t0, t_step, tf) {
 		var n_intervals = (tf - t0) / t_step;
 		var t = numeric.linspace(t0, tf, n_intervals);

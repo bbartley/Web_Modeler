@@ -7,15 +7,87 @@
 <script type="text/javascript">
 
 // Demonstration script starts here
-var S = Object.create(System);  // Lotka-Volterra predator/prey 
-// load math.js
-S.addSpecies('X0', 1, 'hare');
-S.addSpecies('X1', 1, 'fox');
-S.addSpecies('X2', 1, 'eagle');
+var S = Object.create(System);
+
+// Populate the 'virtual ecology'
+S.addSpecies('hare', 1, null );
+S.addSpecies('fox', 1, null );
+
+// Initialize parameters
 S.addParameter('alpha', 1., 'prey specific growth rate')
 S.addParameter('beta', .01, 'predation rate constant')
 S.addParameter('gamma', 1., 'trophic efficiency')
 S.addParameter('delta', 1., 'predator death rate constant')
+
+// Define a one species interaction 
+S.defineInteraction('exponential growth', ['A']);
+S.interactions['exponential growth'].rules['A'].set('alpha * A');
+
+// Define another 
+S.defineInteraction('death, first-order', ['A']);
+S.interactions['death, first-order'].rules['A'].set('-alpha * A');
+
+// Define a two species interaction
+S.defineInteraction('predator-prey', ['prey', 'predator']);
+S.interactions['predator-prey'].rules['prey'].set('-k * prey * predator');
+S.interactions['predator-prey'].rules['predator'].set('k * e * prey * predator');
+
+// Instantiate a predator-prey interaction inside the virtual ecology
+S.addInteraction('exponential growth', ['hare'], ['alpha']);
+S.addInteraction('death, first-order', ['fox'], ['delta']);
+S.addInteraction('predator-prey', ['hare', 'fox'], ['beta', 'gamma']);
+
+// Simulate
+sol = S.simulate(0, 40);
+
+// Add another predator 
+S.addSpecies('wolf', 1, null );
+
+// Instantiate another predator-prey interaction inside the virtual ecology
+// Now we have a food web with three trophic levels
+S.addInteraction('predator-prey', ['fox', 'wolf'], ['beta', 'gamma']);
+S.addInteraction('death, first-order', ['wolf'], ['delta']);
+
+// Simulate again
+sol2 = S.simulate(0, 100);
+sol3 = sol.concat(sol2);
+
+// Add another predator 
+S.addSpecies('Godzilla', 100, null );
+
+// Now we have a food web with FOUR trophic levels
+S.addInteraction('predator-prey', ['wolf', 'Godzilla'], ['beta', 'gamma']);
+S.addInteraction('predator-prey', ['fox', 'Godzilla'], ['beta', 'gamma']);
+S.addInteraction('death, first-order', ['Godzilla'], ['delta']);
+
+// Simulate again
+sol4 = S.simulate(0, 100);
+sol5 = sol3.concat(sol4);
+sol5.plot()
+
+// Instantiate another predator-prey interaction inside the virtual ecology
+// Now we have a food web with three trophic levels
+//S.addInteraction('predator-prey', ['Godzilla', 'wolf'], ['beta', 'gamma']);
+//S.addInteraction('predator-prey', ['Godzilla', 'wolf'], ['beta', 'gamma']);
+//S.addInteraction('death, first-order', ['wolf'], ['delta2']);
+
+
+// Plot cumulative trajectories
+//sol3 = sol.concat(sol2);
+//sol3.plot();
+
+
+
+
+
+
+
+
+
+//S.addSpecies('X2', 1, 'eagle');
+//sol2 = S.simulate();
+//sol3 = sol.concat(sol2);
+//sol3.plot();
 //S.add_function('f', 'alpha * P0', 'prey growth rate')
 //S.add_function('g', 'beta * P0 * P1', 'functional response')
 //S.add_function('h', 'gamma * g', 'numerical_response')
@@ -60,18 +132,15 @@ S.addParameter('delta', 1., 'predator death rate constant')
 //S.interactions['predator-prey']
 //S.addInteraction('exponential-growth', ['X0'], ['alpha']);
 //S.addInteraction('exponential-growth', ['X0'], ['alpha']);
-S.defineInteraction('first-order test', ['A']);
-S.interactions['first-order test'].rules['A'].set('1-a*A');
-S.addInteraction('first-order test', ['X0'], ['beta']);
-sol = S.simulate();
-t = sol.x;
-y = numeric.transpose(sol.y);
-p = [numeric.transpose([t, y[0]])];
-$(function() {
 
-	$.plot("#placeholder", p);
-
-});
+//t = sol.x;
+//y = numeric.transpose(sol.y);
+//p = [numeric.transpose([t, y[0]])];
+//$(function() {
+//
+//	$.plot("#placeholder", p);
+//
+//});
 //S.addInteraction('first-order decay', ['X1'], ['delta']);
 //var node = math.parse('g()');
 //node.traverse(function (node, path, parent) {
@@ -81,5 +150,5 @@ $(function() {
 //});
 
 </script>
-<div id="placeholder" style="width:600px;height:300px"></div>
+<div id="placeholder" style="width:900px;height:450px"></div>
 </body></html>

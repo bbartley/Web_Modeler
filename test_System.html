@@ -39,6 +39,7 @@ S.addInteraction('predator-prey', ['hare', 'fox'], ['beta', 'gamma']);
 
 // Simulate
 sol = S.simulate(0, 40);
+console.log(sol.time[sol.time.length-1], Object.keys(sol.trajectory))
 
 // Add another predator 
 S.addSpecies('wolf', 1, null );
@@ -51,6 +52,7 @@ S.addInteraction('death, first-order', ['wolf'], ['delta']);
 // Simulate again
 sol2 = S.simulate(0, 100);
 sol3 = sol.concat(sol2);
+console.log(sol3.time[sol3.time.length-1], Object.keys(sol3.trajectory))
 
 // Add another predator 
 S.addSpecies('Godzilla', 100, null );
@@ -64,6 +66,7 @@ S.addInteraction('death, first-order', ['Godzilla'], ['delta']);
 sol4 = S.simulate(0, 100);
 sol5 = sol3.concat(sol4);
 sol5.plot()
+console.log(sol5.time[sol5.time.length-1], Object.keys(sol5.trajectory))
 
 // Instantiate another predator-prey interaction inside the virtual ecology
 // Now we have a food web with three trophic levels

@@ -259,13 +259,15 @@ function Simulation(species, solution) {
 		var these_species = Object.keys(this.trajectory);
 		var those_species = Object.keys(other_simulation.trajectory);
 		var combined_species = these_species.concat(those_species).sort();
+		console.log(combined_species);
 		var union = [];
-		union[0] = these_species[0];
+		union[0] = combined_species[0];
 		combined_species.reduce(function(sp1, sp2) { if (sp2 != sp1) union.push(sp2); return sp2 });
+		console.log(union);
 		// Concatenate trajectories, while padding missing trajectory values with undefined
 		var concatenated_trajectory = {}
 		for (i_u in union) {
-			console.log(union[i_u], this.trajectory[union[i_u]], other_simulation.trajectory[union[i_u]]);
+			console.log(union[i_u]);
 			if (this.trajectory[union[i_u]] == undefined) {
 				concatenated_trajectory[union[i_u]] = Array(this.time.length);
 				concatenated_trajectory[union[i_u]] = concatenated_trajectory[union[i_u]].concat(other_simulation.trajectory[union[i_u]]);

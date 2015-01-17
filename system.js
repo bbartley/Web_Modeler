@@ -3,6 +3,22 @@ Interactive web simulator
 @module System
 */
 
+// Implements class inheritance in JavaScript explicitly rather than in JavaScript idioms
+// See http://www.golimojo.com/etc/js-subclass.html
+function subclass(constructor, superConstructor)
+{
+	function surrogateConstructor()
+	{
+	}
+
+	surrogateConstructor.prototype = superConstructor.prototype;
+
+	var prototypeObject = new surrogateConstructor();
+	prototypeObject.constructor = constructor;
+
+	constructor.prototype = prototypeObject;
+}
+
 /** 
 A 'Species' is a state variable in a dynamic system.  It is left open
 to the user's interpretation whether a Species refers to a biochemical
@@ -116,6 +132,7 @@ function Parameter(value, name) {
 	this.name = name;
 	}
 
+
 /**
 Interactions represent subsystem patterns within a larger System.
 Member 'species' of an Interaction are represented by variables that are
@@ -135,7 +152,7 @@ A variable is created for each species listed.  Then a Rule comprising this Inte
 is created for each variable.  Ex:  For an Interaction describing the mass-action
 collision of two molecules described by k * A * B the variables are A & B
 */
-function Interaction(system, name, species) {
+function InteractionDefinition(system, name, species) {
 	/**
 	The parent system that this Interaction belongs to
 	@property {System} system
@@ -219,6 +236,142 @@ function Interaction(system, name, species) {
 		}
 }
 
+// Instantiate an interaction inside the system. The v_args and p_args 
+// are substituted into the InteractionDefinition's v_ids and p_ids.
+subclass(Interaction, InteractionDefinition);
+function Interaction(parent, v_args, p_args) {
+	InteractionDefinition.call(this, parent.system, parent.name, parent.variables());
+	console.log(this);
+	var v_ids = parent.variables();
+	var p_ids = parent.parameters();
+	var symbol_table = {};  // maps { Rule symbol : Interaction argument } 
+		
+	// Validate that v_args and p_args are valid Species and Parameters
+	for (var i_arg=0; i_arg < v_args.length; i_arg++) {
+		if (Object.keys(this.system.species).indexOf(v_args[i_arg]) == -1)  { 
+			console.log('addInteraction: Invalid Species argument');
+			return; 
+		}
+	}
+	for (var i_arg=0; i_arg < p_args.length; i_arg++) {
+		if (Object.keys(this.system.parameters).indexOf(p_args[i_arg]) == -1)  { 
+			console.log('addInteraction: Invalid Parameter argument');
+			return; 
+		}
+	}
+	
+	// Validate that the correct count of symbol arguments (v_args, p_args) is specified
+	// It should match the count of symbols in the parent definition
+	if (v_args.length != v_ids.length) { 
+		console.log('addInteraction:  Expected variables ', v_ids, ' got ', v_args);
+		return; 
+	}
+	if (p_args.length != p_ids.length) { 
+		console.log('addInteraction:  Expected parameters', p_ids, ' got ', p_args);
+		return; 
+	}
+				
+	// map variable arguments to variable symbols in expression tree
+	// in order which rules were assigned
+	for (var i_arg=0; i_arg < v_args.length; i_arg++) {
+		symbol_table[v_ids[i_arg]] = v_args[i_arg];
+		}
+
+	// map parameter arguments to parameter symbols in expression tree
+	// every symbol that's not already a member of rule_ids 
+	for (var i_arg=0; i_arg < p_args.length; i_arg++) {
+		symbol_table[p_ids[i_arg]] = p_args[i_arg];
+		}
+	console.log(symbol_table);
+	
+	// // map parameter arguments to parameter symbols in expression tree
+	// // every symbol that's not already a member of rule_ids 
+	// console.log(symbol_table);
+	// console.log(name);
+	// var i_p = 0;
+	// for (var id in v_ids) {
+		// console.log(id);
+		// var expr_node = this.interactions[name].rules[id].expression;
+		// expr_node.traverse(function (node, path, parent) {
+			// if (node.type == 'SymbolNode' && !(node.name in symbol_table)) {
+				// symbol_table[node.name] = p_args[i_p];
+				// i_p++;
+			// }
+		// });
+	// }
+	// console.log(name);
+	// console.log(this);
+	
+	//Substitute variable arguments and parameter arguments for variables and parameters in 
+	//Interaction's local scope
+	console.log('Substituting Interaction arguments into Rule variables and parameters');
+	//for (var r_id in this.system.interactions[name].rules) {
+	for (var r_id in parent.rules) {
+		// 
+		console.log('Rule:', r_id );
+		//this.interactions[name].rules[r_id].toString()
+		parent.rules[r_id].toString();
+		
+		// Make a copy of the Rule's expression syntax tree so we can overwrite
+		// variables and parameters with the Interaction's arguments.  In effect,
+		// this instantiates the Interaction
+		// var expression_tree = this.system.interactions[name].rules[r_id].expression.clone();
+		// var expression_tree = math.parse(this.system.interactions[name].rules[r_id].expression.toString());
+		var expression_tree = parent.rules[r_id].expression.clone();
+		var expression_tree = math.parse(parent.rules[r_id].expression.toString());
+
+		// Filter SymbolNodes out of the syntax tree
+		var nodes = expression_tree.filter(function (node) { 
+			return (node.type == 'SymbolNode') 
+		});
+
+		for (i_n = 0; i_n < nodes.length; i_n++) {
+			var node = nodes[i_n];
+			console.log('Substituting:', i_n, nodes.length, nodes[i_n].type)
+			// Look up the argument symbol in the Interaction's local symbol table
+			// then substitute in the expression syntax tree
+			if (Object.keys(symbol_table).indexOf(node.name) != -1) {
+				console.log(node.name, symbol_table[node.name]);
+				node.name = symbol_table[node.name];
+			}
+		}
+		console.log('Substituted Rule:', r_id );
+		//this.interactions[name].rules[r_id].toString();
+		parent.rules[r_id].toString();
+		
+		var s_id = symbol_table[r_id]; // Get Species id corresponding to this Rule
+		console.log(s_id, this.system.species[s_id].name);
+
+		if (this.system.species[s_id].rate_law.expression != null) {
+			this.system.species[s_id].rate_law.expression = new math.expression.node.OperatorNode('+',
+				'add',[this.system.species[s_id].rate_law.expression, expression_tree]);				
+		} else {
+			this.system.species[s_id].rate_law.expression = expression_tree.clone();
+		}
+		this.system.species[s_id].rate_law.toString();
+	}
+
+	// I tested mathjs library's transform function to replace nodes, but it didn't work
+	// console.log(rule_id);
+	// console.log(this.interactions[name].rules[rule_id].toString());
+	// for (var rule_id in this.interactions[name].rules) {
+		// expr_node = expr_node.transform(function (node, path, parent) {
+			// if (node.type == 'SymbolNode') {
+				// console.log(node.name, symbol_table[node.name]);
+				// return node;  // didn't work
+				// node.name = symbol_table[node.name];  // didn't work either
+				// return new math.expression.node.SymbolNode(symbol_table[node.name]);
+			// } else {
+				// return node;
+			// }
+		// });
+		// console.log( name);
+		// this.interactions[name].rules[rule_id].expression = expr_node;
+		// console.log(this.interactions[name]);
+		// console.log(this.interactions[name].rules[rule_id].toString());
+	// }
+}
+
 /**
 Simulation objects contain the results of a dynamic simulation of a model system.
 @class Simulation
@@ -256,18 +409,17 @@ function Simulation(species, solution) {
 	*/
 	this.concat = function(other_simulation) {
 		// Find union of species identifiers in the simulations you are concatenating
+		// This code should maybe get factored out
 		var these_species = Object.keys(this.trajectory);
 		var those_species = Object.keys(other_simulation.trajectory);
 		var combined_species = these_species.concat(those_species).sort();
-		console.log(combined_species);
 		var union = [];
 		union[0] = combined_species[0];
 		combined_species.reduce(function(sp1, sp2) { if (sp2 != sp1) union.push(sp2); return sp2 });
-		console.log(union);
+		
 		// Concatenate trajectories, while padding missing trajectory values with undefined
 		var concatenated_trajectory = {}
 		for (i_u in union) {
-			console.log(union[i_u]);
 			if (this.trajectory[union[i_u]] == undefined) {
 				concatenated_trajectory[union[i_u]] = Array(this.time.length);
 				concatenated_trajectory[union[i_u]] = concatenated_trajectory[union[i_u]].concat(other_simulation.trajectory[union[i_u]]);
@@ -337,6 +489,8 @@ var System = {
 	@property {Object} interactions
 	*/
 	interactions: {},
+
+	_interactions: [],
 	
 	/**
 	The symbol_table is used internally to map Species objects to their respective state variables 
@@ -416,7 +570,7 @@ var System = {
 	@param {String} name The full, descriptive name for the Interaction
 	*/
 	defineInteraction:  function(name, species) {
-		this.interactions[name] = new Interaction(this, name, species);
+		this.interactions[name] = new InteractionDefinition(this, name, species);
 	},
 		
 	/**
@@ -433,130 +587,11 @@ var System = {
 	Parameter identifiers to substitute in for the local parameters used by this Interaction
 	This allows one to pass in global system parameters.
 	*/
-	addInteraction: function(name, v_args, p_args) {
-		// arguments array should contain as many Symbols as the expression tree
-		var v_ids = this.interactions[name].variables();
-		var p_ids = this.interactions[name].parameters();
-		var symbol_table = {};  // maps { Rule symbol : Interaction argument } 
-			
-		// Validate that v_args and p_args are valid Species and Parameters
-		for (var i_arg=0; i_arg < v_args.length; i_arg++) {
-			if (Object.keys(this.species).indexOf(v_args[i_arg]) == -1)  { 
-				console.log('addInteraction: Invalid Species argument');
-				return; 
-			}
-		}
-		for (var i_arg=0; i_arg < p_args.length; i_arg++) {
-			if (Object.keys(this.parameters).indexOf(p_args[i_arg]) == -1)  { 
-				console.log('addInteraction: Invalid Parameter argument');
-				return; 
-			}
-		}
-		
-		// Validate that all arguments were passed to the Interaction
-		if (v_args.length != v_ids.length) { 
-			console.log('addInteraction:  Expected variables ', v_ids, ' got ', v_args);
-			return; 
-		}
-		if (p_args.length != p_ids.length) { 
-			console.log('addInteraction:  Expected parameters', p_ids, ' got ', p_args);
-			return; 
-		}
-				
-		
-		// map variable arguments to variable symbols in expression tree
-		// in order which rules were assigned
-		for (var i_arg=0; i_arg < v_args.length; i_arg++) {
-			symbol_table[v_ids[i_arg]] = v_args[i_arg];
-			}
-
-		// map parameter arguments to parameter symbols in expression tree
-		// every symbol that's not already a member of rule_ids 
-		for (var i_arg=0; i_arg < p_args.length; i_arg++) {
-			symbol_table[p_ids[i_arg]] = p_args[i_arg];
-			}
-		console.log(symbol_table);
-		
-		// // map parameter arguments to parameter symbols in expression tree
-		// // every symbol that's not already a member of rule_ids 
-		// console.log(symbol_table);
-		// console.log(name);
-		// var i_p = 0;
-		// for (var id in v_ids) {
-			// console.log(id);
-			// var expr_node = this.interactions[name].rules[id].expression;
-			// expr_node.traverse(function (node, path, parent) {
-				// if (node.type == 'SymbolNode' && !(node.name in symbol_table)) {
-					// symbol_table[node.name] = p_args[i_p];
-					// i_p++;
-				// }
-			// });
-		// }
-		// console.log(name);
-		// console.log(this);
-		
-		//Substitute variable arguments and parameter arguments for variables and parameters in //Interaction's local scope
-		console.log('Substituting Interaction arguments into Rule variables and parameters');
-		for (var r_id in this.interactions[name].rules) {
-			// 
-			console.log('Rule:', r_id );
-			this.interactions[name].rules[r_id].toString()
-
-			// Make a copy of the Rule's expression syntax tree so we can overwrite
-			// variables and parameters with the Interaction's arguments.  In effect,
-			// this instantiates the Interaction
-			var expression_tree = this.interactions[name].rules[r_id].expression.clone();
-			var expression_tree = math.parse(this.interactions[name].rules[r_id].expression.toString());
-			// Filter SymbolNodes out of the syntax tree
-			var nodes = expression_tree.filter(function (node) { 
-				return (node.type == 'SymbolNode') 
-			});
-
-			for (i_n = 0; i_n < nodes.length; i_n++) {
-				var node = nodes[i_n];
-				console.log('Substituting:', i_n, nodes.length, nodes[i_n].type)
-				// Look up the argument symbol in the Interaction's local symbol table
-				// then substitute in the expression syntax tree
-				if (Object.keys(symbol_table).indexOf(node.name) != -1) {
-					console.log(node.name, symbol_table[node.name]);
-					node.name = symbol_table[node.name];
-				}
-			}
-			console.log('Substituted Rule:', r_id );
-			this.interactions[name].rules[r_id].toString();
-			
-			var s_id = symbol_table[r_id]; // Get Species id corresponding to this Rule
-			console.log(s_id, this.species[s_id].name);
-
-			if (this.species[s_id].rate_law.expression != null) {
-				this.species[s_id].rate_law.expression = new math.expression.node.OperatorNode('+',
-					'add',[this.species[s_id].rate_law.expression, expression_tree]);				
-			} else {
-				this.species[s_id].rate_law.expression = expression_tree.clone();
-			}
-			this.species[s_id].rate_law.toString();
-		}
-	
-		
-		// I tested mathjs library's transform function to replace nodes, but it didn't work
-		//console.log(rule_id);
-		//console.log(this.interactions[name].rules[rule_id].toString());
-		//for (var rule_id in this.interactions[name].rules) {
-			// expr_node = expr_node.transform(function (node, path, parent) {
-				// if (node.type == 'SymbolNode') {
-					// console.log(node.name, symbol_table[node.name]);
-					//return node;  // didn't work
-					//node.name = symbol_table[node.name];  // didn't work either
-					// return new math.expression.node.SymbolNode(symbol_table[node.name]);
-				// } else {
-					// return node;
-				// }
-			// });
-			//console.log( name);
-			//this.interactions[name].rules[rule_id].expression = expr_node;
-			//console.log(this.interactions[name]);
-			//console.log(this.interactions[name].rules[rule_id].toString());
-		//}
+	addInteraction: function(id, v_args, p_args) {
+		var parent = this.interactions[id];
+		var i = new Interaction(parent, v_args, p_args);
+		this._interactions.push( i );
+		console.log("Instantiating interaction", i);
 	},
 
 	/**

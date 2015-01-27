@@ -38,6 +38,7 @@ S.addInteraction('death, first-order', ['fox'], ['delta']);
 S.addInteraction('predator-prey', ['hare', 'fox'], ['beta', 'gamma']);
 
 // Simulate
+S.compile();
 sol = S.simulate(0, 40);
 console.log(sol.time[sol.time.length-1], Object.keys(sol.trajectory))
 
@@ -50,6 +51,7 @@ S.addInteraction('predator-prey', ['fox', 'wolf'], ['beta', 'gamma']);
 S.addInteraction('death, first-order', ['wolf'], ['delta']);
 
 // Simulate again
+S.compile();
 sol2 = S.simulate(0, 100);
 sol3 = sol.concat(sol2);
 console.log(sol3.time[sol3.time.length-1], Object.keys(sol3.trajectory))
@@ -63,6 +65,7 @@ S.addInteraction('predator-prey', ['fox', 'Godzilla'], ['beta', 'gamma']);
 S.addInteraction('death, first-order', ['Godzilla'], ['delta']);
 
 // Simulate again
+S.compile();
 sol4 = S.simulate(0, 100);
 sol5 = sol3.concat(sol4);
 sol5.plot()

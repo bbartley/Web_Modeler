@@ -31,6 +31,12 @@ species or a biological species. Requires math.js
 function Species(initial_value, name) {
 
 	/**
+	A unique, descriptive identifier used to refer to the Species.  Examples are "R" or "rabbit"
+	@property {String} name
+	*/
+	this.name = name;
+
+	/**
 	The quantity of this Species at the "present" time in a real-time simulation
 	@property {Number} value
 	*/
@@ -44,12 +50,6 @@ function Species(initial_value, name) {
 	@property {Rule} rate_law
 	*/
 	this.rate_law = new Rule();
-
-	/**
-	A unique, descriptive identifier used to refer to the Species.  Examples are "R" or "rabbit"
-	@property {String} name
-	*/
-	this.name = name;
 
 	/**
 	An index used to match the Species to an internal state variable in the System equations
@@ -75,7 +75,8 @@ The expression is treated like a term in the Species.rate_law.
 */
 function Rule() {
 	/**
-	A name or description for this rule, eg, "Exponential Growth"
+	Currently a placeholder property.
+	A name or description for this rule, eg, "Exponential Growth".
 	@property {String} name
 	*/
 	this.name = null;
@@ -166,12 +167,27 @@ function InteractionDefinition(system, name, species) {
 	this.name = name; // name or description for the interaction, eg "Predator-prey", see "giveName"
 
 	/**
+	Auto-construct a child Rule object for each species.
+	Then register it in this Interaction's scope using the variables field
+	@method addRule
+	@private
+	*/
+	this.addRule = function(variable) {
+		this.rules[variable] = new Rule();
+		}
+	
+	/**
 	An Object containing all the Rules that comprise this Interaction.  There is usually one Rule
 	corresponding to each Species in the Interaction.  So an Interaction between two Species "A" & "B"
 	will have Rules "A" and "B".
 	@property {Object} rules
 	*/
 	this.rules = {};
+	// Registers the new rule but doesn't initialize the expression or name
+	for (var s_id in species) {
+		//console.log(species[s_id]);
+		this.addRule(species[s_id], null,  null);  
+		}
 	//this.variables = [];  // variables parsed from rules and contained in this Interaction's local scope
 	//this.parameters = []; // parameters parsed from rules and contained in this Interaction's local scope
 
@@ -211,39 +227,48 @@ function InteractionDefinition(system, name, species) {
 						variables.indexOf(node.name) == -1 &&
 						parameters.indexOf(node.name) == -1)
 			});
-			p_names = p_nodes.map(function(node) {
-				return (node.name)
-			});
+			p_names = p_nodes.map(function(node) { return (node.name) });
+			console.log(r_id, p_names);
+			console.log(this.rules[r_id].expression.toString(), variables);
 			parameters = parameters.concat(p_names);
 		}
 		return parameters;
 	}
 	
-	/**
-	Auto-construct a child Rule object for each species.
-	Then register it in this Interaction's scope using the variables field
-	@method addRule
-	@private
-	*/
-	this.addRule = function(variable) {
-		this.rules[variable] = new Rule();
-		}
-		
-	// Registers the new rule but doesn't initialize the expression or name
-	for (var s_id in species) {
-		//console.log(species[s_id]);
-		this.addRule(species[s_id], null,  null);  
-		}
 }
 
-// Instantiate an interaction inside the system. The v_args and p_args 
+// Instantiate an Interaction inside the system. The v_args and p_args 
 // are substituted into the InteractionDefinition's v_ids and p_ids.
 subclass(Interaction, InteractionDefinition);
-function Interaction(parent, v_args, p_args) {
-	InteractionDefinition.call(this, parent.system, parent.name, parent.variables());
-	console.log(this);
-	var v_ids = parent.variables();
-	var p_ids = parent.parameters();
+function Interaction(base, v_args, p_args) {
+	// Copy the base object but with new Species
+	InteractionDefinition.call(this, base.system, base.name, v_args);
+	// Clone the Rule expressions
+	for (var i_r=0; i_r < Object.keys(base.rules).length; i_r++) {
+		console.log(Object.keys(base.rules)[i_r]);
+		console.log(Object.keys(this.rules)[i_r]);
+		var old_rule = base.rules[ Object.keys(base.rules)[i_r] ];
+		var new_rule = this.rules[ Object.keys(this.rules)[i_r] ];
+		// The following line doesn't work.  Clone() behaves unexpectedly
+		// it appears to copy by reference rather than creating a new expression tree object
+		//new_rule.expression = old_rule.expression.clone();
+		new_rule.set( old_rule.expression.toString() );
+	}
+	// // Copy the Rules from the base InteractionDefinition
+	// for (var i_arg=0; i_arg < v_args.length; i_arg++) {
+		// var old_rule_id = v_ids[i_arg];
+		// var new_rule_id = symbol_table[old_rule_id];
+		// this.rules[new_rule_id] = new Rule();
+		// this.rules[new_rule_id].expression = base.rules[old_rule_id].expression.clone();
+		// delete this.rules[old_rule_id];
+		// console.log(this.rules[new_rule_id].expression);
+		// }
+
+	var v_ids = base.variables();
+	var p_ids = base.parameters();
+	console.log(v_ids, v_args);
+	console.log(p_ids, p_args);
+	console.log(this, base);
 	var symbol_table = {};  // maps { Rule symbol : Interaction argument } 
 		
 	// Validate that v_args and p_args are valid Species and Parameters
@@ -261,7 +286,7 @@ function Interaction(parent, v_args, p_args) {
 	}
 	
 	// Validate that the correct count of symbol arguments (v_args, p_args) is specified
-	// It should match the count of symbols in the parent definition
+	// It should match the count of symbols in the base definition
 	if (v_args.length != v_ids.length) { 
 		console.log('addInteraction:  Expected variables ', v_ids, ' got ', v_args);
 		return; 
@@ -305,29 +330,23 @@ function Interaction(parent, v_args, p_args) {
 	//Substitute variable arguments and parameter arguments for variables and parameters in 
 	//Interaction's local scope
 	console.log('Substituting Interaction arguments into Rule variables and parameters');
-	//for (var r_id in this.system.interactions[name].rules) {
-	for (var r_id in parent.rules) {
-		// 
-		console.log('Rule:', r_id );
-		//this.interactions[name].rules[r_id].toString()
-		parent.rules[r_id].toString();
-		
+	for (var r_id in this.rules) {
+		console.log('Substituting Rule:', r_id );
+
 		// Make a copy of the Rule's expression syntax tree so we can overwrite
 		// variables and parameters with the Interaction's arguments.  In effect,
 		// this instantiates the Interaction
 		// var expression_tree = this.system.interactions[name].rules[r_id].expression.clone();
 		// var expression_tree = math.parse(this.system.interactions[name].rules[r_id].expression.toString());
-		var expression_tree = parent.rules[r_id].expression.clone();
-		var expression_tree = math.parse(parent.rules[r_id].expression.toString());
-
+		
 		// Filter SymbolNodes out of the syntax tree
-		var nodes = expression_tree.filter(function (node) { 
+		var nodes = this.rules[r_id].expression.filter(function (node) { 
 			return (node.type == 'SymbolNode') 
 		});
 
 		for (i_n = 0; i_n < nodes.length; i_n++) {
 			var node = nodes[i_n];
-			console.log('Substituting:', i_n, nodes.length, nodes[i_n].type)
+			console.log('Substituting:', i_n+1, nodes.length, nodes[i_n].type)
 			// Look up the argument symbol in the Interaction's local symbol table
 			// then substitute in the expression syntax tree
 			if (Object.keys(symbol_table).indexOf(node.name) != -1) {
@@ -336,19 +355,20 @@ function Interaction(parent, v_args, p_args) {
 			}
 		}
 		console.log('Substituted Rule:', r_id );
-		//this.interactions[name].rules[r_id].toString();
-		parent.rules[r_id].toString();
 		
-		var s_id = symbol_table[r_id]; // Get Species id corresponding to this Rule
-		console.log(s_id, this.system.species[s_id].name);
+		// Build the syntax tree for the rate law expression
+		// var s_id = symbol_table[r_id]; // Get Species id corresponding to this Rule
+		// console.log(s_id, this.system.species[s_id].name);
 
-		if (this.system.species[s_id].rate_law.expression != null) {
-			this.system.species[s_id].rate_law.expression = new math.expression.node.OperatorNode('+',
-				'add',[this.system.species[s_id].rate_law.expression, expression_tree]);				
-		} else {
-			this.system.species[s_id].rate_law.expression = expression_tree.clone();
-		}
-		this.system.species[s_id].rate_law.toString();
+		// // Update the rate laws of the participant Species
+		// // Moved to compile method
+		// if (this.system.species[s_id].rate_law.expression != null) {
+			// this.system.species[s_id].rate_law.expression = new math.expression.node.OperatorNode('+',
+				// 'add',[this.system.species[s_id].rate_law.expression, expression_tree]);				
+		// } else {
+			// this.system.species[s_id].rate_law.expression = expression_tree.clone();
+		// }
+		// this.system.species[s_id].rate_law.toString();
 	}
 
 	// I tested mathjs library's transform function to replace nodes, but it didn't work
@@ -392,6 +412,9 @@ function Simulation(species, solution) {
 	@property {Array} time
 	*/
 	this.time = [];
+	
+	// Initialize the trajectory dictionary with state trajectories for each species listed in 
+	// the argument. The trajectories are found by re-arranging the integrator's solution object
 	if (species && solution) {
 		this.time = solution.x;
 		var y = numeric.transpose(solution.y)
@@ -401,7 +424,7 @@ function Simulation(species, solution) {
 		console.log(this.time);
 		console.log(this.trajectory);
 	}
-	
+			
 	/**
 	Concatenate trajectories from two simulation objects. 
 	@method concat
@@ -490,6 +513,11 @@ var System = {
 	*/
 	interactions: {},
 
+	/**
+	Registers all the Interaction instances in the System.
+	@property {Object} _interactions
+	@private
+	*/
 	_interactions: [],
 	
 	/**
@@ -539,6 +567,17 @@ var System = {
 	},
 
 	/**
+	Remove a Species and all Interactions that this Species participates in from the System.
+	@method removeSpecies
+	@param {String} identifier A short-hand symbol or identifier specifying the Species to 
+	remove from the System
+	*/
+	removeSpecies: function(identifier) {
+		// Create new Species and register it in the System
+		// this.species[identifier] = new Species(initial_value, name);;
+	},
+	
+	/**
 	Auto-construct a new Parameter and register it in the System
 	@method addParameter
 	@constructor
@@ -551,7 +590,6 @@ var System = {
 		this.parameters[identifier] = new Parameter(value, name);
 		this.parser.eval(identifier + '=' + value);
 	},
-	
 	
 	// // Deprecated
 	// addRule:  function(identifier, expression, name) {
@@ -588,12 +626,35 @@ var System = {
 	This allows one to pass in global system parameters.
 	*/
 	addInteraction: function(id, v_args, p_args) {
-		var parent = this.interactions[id];
-		var i = new Interaction(parent, v_args, p_args);
+		var base_definition = this.interactions[id];
+		var i = new Interaction(base_definition, v_args, p_args);
 		this._interactions.push( i );
 		console.log("Instantiating interaction", i);
+		console.log(this._interactions.length);
 	},
 
+	/**
+	Remove all Interaction instances with the participant Species specified in the argument
+	@method removeInteractionsBySpecies
+	@param {Array} identifiers Identifiers for Species used to target the Interaction instances
+	for removal
+	*/
+	removeInteractionsBySpecies: function(identifiers) {
+		// Create new Species and register it in the System
+		// this.species[identifier] = new Species(initial_value, name);;
+	},
+
+	/**
+	Remove all Interaction instances that share the specified InteractionDefinition
+	@method removeInteractionsByName
+	@param {String} name The name of the InteractionDefinition for the targeted
+	Interaction instances.
+	*/
+	removeInteractionsByName: function(name) {
+		// Create new Species and register it in the System
+		// this.species[identifier] = new Species(initial_value, name);;
+	},
+	
 	/**
 	Simulate the System model.
 	@method simulate
@@ -608,7 +669,7 @@ var System = {
 			console.log("Compiling rate law for species", sp, i_sp);
 			if (this.species[sp].rate_law.expression != null) {
 				console.log(sp, 'Rate law:');
-				this.species[sp].rate_law.toString();
+				this.species[sp].rate_law.expression.toString();
 				this.model[i_sp] = this.species[sp].rate_law.expression.compile(math)
 			} else {
 				// @TODO:  What to do if a rate law for a species has not been defined?
@@ -641,7 +702,43 @@ var System = {
 		return new Simulation(Object.keys(this.species), solution);
 		//return this.odeInt(initial_values, 0, 0.1, 100);
 	},
-
+	
+	/**
+	Builds an expression tree for each Species' rate law.  Compiles the syntax tree using mathjs.
+	The compiled code is saved in the System.model property and later evaluated by the simulate method.
+	@method compile
+	*/
+	compile: function() {
+		
+		// Gather all the mathematical terms contained in Interaction rules and
+		// build them into a rate law 
+		for(i in this._interactions) {
+			var interaction = this._interactions[i];
+			console.log(interaction.name);
+			participant_ids = interaction.variables();
+			for(i_p in participant_ids) {
+				
+				// Get participant Species that participates in this Interaction
+				var participant_id = participant_ids[i_p]; 
+				var participant = this.species[participant_id];
+				console.log(participant_id);
+				
+				// Initialize the rate law if this is the first time 
+				// this participant Species has been found in an Interaction
+				if (participant.rate_law.expression == null) {
+					participant.rate_law.expression =
+						interaction.rules[participant_id].expression.clone();
+				// ...else add the new term to the rate law
+				} else {
+					participant.rate_law.expression = 
+						new math.expression.node.OperatorNode('+','add', [participant.rate_law.expression, 
+						interaction.rules[participant_id].expression.clone()]);				
+				}
+			}
+		}
+	},
+	
+	
 	// @TODO:  pass the System as an argument to dY so that its properties can be accessed
 	// when numeric.dopri invokes dY as a callback, changing the context for 'this' object
 	/**

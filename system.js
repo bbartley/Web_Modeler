@@ -228,8 +228,6 @@ function InteractionDefinition(system, name, species) {
 						parameters.indexOf(node.name) == -1)
 			});
 			p_names = p_nodes.map(function(node) { return (node.name) });
-			console.log(r_id, p_names);
-			console.log(this.rules[r_id].expression.toString(), variables);
 			parameters = parameters.concat(p_names);
 		}
 		return parameters;
@@ -245,8 +243,6 @@ function Interaction(base, v_args, p_args) {
 	InteractionDefinition.call(this, base.system, base.name, v_args);
 	// Clone the Rule expressions
 	for (var i_r=0; i_r < Object.keys(base.rules).length; i_r++) {
-		console.log(Object.keys(base.rules)[i_r]);
-		console.log(Object.keys(this.rules)[i_r]);
 		var old_rule = base.rules[ Object.keys(base.rules)[i_r] ];
 		var new_rule = this.rules[ Object.keys(this.rules)[i_r] ];
 		// The following line doesn't work.  Clone() behaves unexpectedly
@@ -266,15 +262,11 @@ function Interaction(base, v_args, p_args) {
 
 	var v_ids = base.variables();
 	var p_ids = base.parameters();
-	console.log(v_ids, v_args);
-	console.log(p_ids, p_args);
-	console.log(this, base);
 	var symbol_table = {};  // maps { Rule symbol : Interaction argument } 
 		
 	// Validate that v_args and p_args are valid Species and Parameters
 	for (var i_arg=0; i_arg < v_args.length; i_arg++) {
 		if (Object.keys(this.system.species).indexOf(v_args[i_arg]) == -1)  { 
-			console.log('addInteraction: Invalid Species argument');
 			return; 
 		}
 	}
@@ -307,7 +299,6 @@ function Interaction(base, v_args, p_args) {
 	for (var i_arg=0; i_arg < p_args.length; i_arg++) {
 		symbol_table[p_ids[i_arg]] = p_args[i_arg];
 		}
-	console.log(symbol_table);
 	
 	// // map parameter arguments to parameter symbols in expression tree
 	// // every symbol that's not already a member of rule_ids 
@@ -329,10 +320,7 @@ function Interaction(base, v_args, p_args) {
 	
 	//Substitute variable arguments and parameter arguments for variables and parameters in 
 	//Interaction's local scope
-	console.log('Substituting Interaction arguments into Rule variables and parameters');
 	for (var r_id in this.rules) {
-		console.log('Substituting Rule:', r_id );
-
 		// Make a copy of the Rule's expression syntax tree so we can overwrite
 		// variables and parameters with the Interaction's arguments.  In effect,
 		// this instantiates the Interaction
@@ -346,15 +334,12 @@ function Interaction(base, v_args, p_args) {
 
 		for (i_n = 0; i_n < nodes.length; i_n++) {
 			var node = nodes[i_n];
-			console.log('Substituting:', i_n+1, nodes.length, nodes[i_n].type)
 			// Look up the argument symbol in the Interaction's local symbol table
 			// then substitute in the expression syntax tree
 			if (Object.keys(symbol_table).indexOf(node.name) != -1) {
-				console.log(node.name, symbol_table[node.name]);
 				node.name = symbol_table[node.name];
 			}
 		}
-		console.log('Substituted Rule:', r_id );
 		
 		// Build the syntax tree for the rate law expression
 		// var s_id = symbol_table[r_id]; // Get Species id corresponding to this Rule
@@ -421,8 +406,6 @@ function Simulation(species, solution) {
 		for (i_sp = 0; i_sp < species.length; i_sp++) {
 			this.trajectory[species[i_sp]] = y[i_sp];
 		}
-		console.log(this.time);
-		console.log(this.trajectory);
 	}
 			
 	/**
@@ -468,8 +451,9 @@ function Simulation(species, solution) {
 	/**
 	Plot Simulation trajectories.
 	@method plot
+	@param div DOM element in which the plot will be inserted into html page
 	*/
-	this.plot = function() {
+	this.plot = function(div) {
 		var species = Object.keys(this.trajectory);
 		var data = [];
 		for (i_sp in species) {
@@ -479,7 +463,7 @@ function Simulation(species, solution) {
 		console.log(data);
 		var p = [numeric.transpose([this.time, this.trajectory[species[0]]])];
 		console.log(p);
-		$(function() { $.plot("#placeholder", data); });
+		$(function() { $.plot("#" + div, data); });
 	}
 }
 
@@ -557,7 +541,9 @@ var System = {
 	addSpecies: function(identifier, initial_value, name) {
 		// Create new Species and register it in the System
 		this.species[identifier] = new Species(initial_value, name);
-		this.model[Object.keys(this.species).length] = null;
+		this.model[Object.keys(this.species).length-1] = null;
+		console.log(Object.keys(this.species).length, this.model);
+
 		//this.species[identifier] = new Species(initial_value, name);
 		// Register the Species' instance number in System's global symbol map
 		// This instance number will map to a state variable index in the simulation
@@ -575,6 +561,10 @@ var System = {
 	removeSpecies: function(identifier) {
 		// Create new Species and register it in the System
 		// this.species[identifier] = new Species(initial_value, name);;
+		this.removeInteractionsBySpecies([identifier]);
+		this.model.splice(Object.keys(this.species).indexOf(identifier), 1);
+		delete this.species[identifier];
+		console.log(this.species, this.model);
 	},
 	
 	/**
@@ -629,8 +619,6 @@ var System = {
 		var base_definition = this.interactions[id];
 		var i = new Interaction(base_definition, v_args, p_args);
 		this._interactions.push( i );
-		console.log("Instantiating interaction", i);
-		console.log(this._interactions.length);
 	},
 
 	/**
@@ -640,8 +628,20 @@ var System = {
 	for removal
 	*/
 	removeInteractionsBySpecies: function(identifiers) {
-		// Create new Species and register it in the System
-		// this.species[identifier] = new Species(initial_value, name);;
+		for (i_id in identifiers) {
+			target_id = identifiers[i_id];
+			// Search the System's list of interaction instances for the target
+			// and delete them.  
+			// The list of interactions is searched from back to front, so that
+			// deletions can be made without affecting the array indexes of the remaining
+			// interactions
+			for (i__int=this._interactions.length-1; i__int >= 0; i__int--) {
+				var interaction = this._interactions[i__int];
+				if (interaction.variables().indexOf(target_id) != -1) {
+					this._interactions.splice(i__int, 1);
+				}
+			}
+		}
 	},
 
 	/**
@@ -651,8 +651,12 @@ var System = {
 	Interaction instances.
 	*/
 	removeInteractionsByName: function(name) {
-		// Create new Species and register it in the System
-		// this.species[identifier] = new Species(initial_value, name);;
+		for (i__int=this._interactions.length-1; i__int >= 0; i__int--) {
+			var interaction = this._interactions[i__int];
+			if (interaction.name == name) {
+				this._interactions.splice(i__int, 1);
+			}
+		}
 	},
 	
 	/**
@@ -665,15 +669,16 @@ var System = {
     	var initial_values = [];
 		var i_sp = 0;
 		for (var sp in this.species) {
+			console.log(i_sp, sp);
+			console.log(Object.keys(this.model).length, this.model);
+
 			// Compile the rate_law for this species and attach to the System.model field
-			console.log("Compiling rate law for species", sp, i_sp);
 			if (this.species[sp].rate_law.expression != null) {
-				console.log(sp, 'Rate law:');
 				this.species[sp].rate_law.expression.toString();
 				this.model[i_sp] = this.species[sp].rate_law.expression.compile(math)
 			} else {
-				// @TODO:  What to do if a rate law for a species has not been defined?
-				// @TODO:  move to System constructor
+				// @todo What to do if a rate law for a species has not been defined?
+				// @todo move to System constructor
 				// For now just assume that its rate of change is zero
 				this.model[i_sp] = math.compile("0");
 			}
@@ -694,11 +699,8 @@ var System = {
 			//console.log('Substituted Rule:', r_id );
 			//this.interactions[name].rules[r_id].toString();
 		}
-		console.log('Initial values:', initial_values);
-
 		var solution = numeric.dopri(t0,tf,initial_values,this.dY,1e-6,10000, function() {return -1}, [
 		this]);
-		console.log(solution);
 		return new Simulation(Object.keys(this.species), solution);
 		//return this.odeInt(initial_values, 0, 0.1, 100);
 	},
@@ -710,18 +712,20 @@ var System = {
 	*/
 	compile: function() {
 		
+		// Initialize rate law expressions
+		for (sp in this.species) {
+			this.species[sp].rate_law.expression = null;
+		}
 		// Gather all the mathematical terms contained in Interaction rules and
 		// build them into a rate law 
 		for(i in this._interactions) {
 			var interaction = this._interactions[i];
-			console.log(interaction.name);
 			participant_ids = interaction.variables();
 			for(i_p in participant_ids) {
 				
 				// Get participant Species that participates in this Interaction
 				var participant_id = participant_ids[i_p]; 
 				var participant = this.species[participant_id];
-				console.log(participant_id);
 				
 				// Initialize the rate law if this is the first time 
 				// this participant Species has been found in an Interaction
@@ -758,10 +762,10 @@ var System = {
 	dY: function(t, y, params) {
 		// @TODO:  add validation step here.  Check for valid System object passed in params argument
 		system = params[0];
-		//var simulation_vars = Object.keys(this.species);
-		//console.log(params);
-		//var species_ids = Object.keys(this.species);
 		var species_ids = Object.keys(system.species);
+		if (t==0){
+			console.log(species_ids);
+		}
 		var dy = [];
 		// Construct a scope object by mapping the current values of the javascript simulation variable
 		// with the corresponding variable identifier in the System scope (ie, the species id)
@@ -775,7 +779,9 @@ var System = {
 			//scope[p] = this.parameters[p].value;
 			scope[p] = system.parameters[p].value;
 		}
-		//console.log('Scope:',scope);
+		if (t==0){
+			console.log('Scope:',scope);
+		}
 		
 		// Calculate the differentials in the System parser scope,
 		// then copy back to the javascript simulation variable
@@ -787,7 +793,7 @@ var System = {
 		return dy;
 	},
 	
-	// Deprecated
+	// Deprecated, Euler's method used for testing
 	odeInt: function(y0, t0, t_step, tf) {
 		var n_intervals = (tf - t0) / t_step;
 		var t = numeric.linspace(t0, tf, n_intervals);

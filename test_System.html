@@ -10,8 +10,11 @@
 var S = Object.create(System);
 
 // Populate the 'virtual ecology'
+console.log(S.species, S.model);
 S.addSpecies('hare', 1, null );
+console.log(S.species, S.model);
 S.addSpecies('fox', 1, null );
+console.log(S.species, S.model);
 
 // Initialize parameters
 S.addParameter('alpha', 1., 'prey specific growth rate')
@@ -40,7 +43,7 @@ S.addInteraction('predator-prey', ['hare', 'fox'], ['beta', 'gamma']);
 // Simulate
 S.compile();
 sol = S.simulate(0, 40);
-console.log(sol.time[sol.time.length-1], Object.keys(sol.trajectory))
+cumulative_history = sol;
 
 // Add another predator 
 S.addSpecies('wolf', 1, null );
@@ -52,9 +55,8 @@ S.addInteraction('death, first-order', ['wolf'], ['delta']);
 
 // Simulate again
 S.compile();
-sol2 = S.simulate(0, 100);
-sol3 = sol.concat(sol2);
-console.log(sol3.time[sol3.time.length-1], Object.keys(sol3.trajectory))
+sol = S.simulate(0, 100);
+cumulative_history = cumulative_history.concat(sol);
 
 // Add another predator 
 S.addSpecies('Godzilla', 100, null );
@@ -66,10 +68,27 @@ S.addInteraction('death, first-order', ['Godzilla'], ['delta']);
 
 // Simulate again
 S.compile();
-sol4 = S.simulate(0, 100);
-sol5 = sol3.concat(sol4);
-sol5.plot()
-console.log(sol5.time[sol5.time.length-1], Object.keys(sol5.trajectory))
+sol = S.simulate(0, 100);
+cumulative_history = cumulative_history.concat(sol);
+
+// Test remove methods
+S.removeInteractionsBySpecies(['Godzilla']);
+S.compile();
+sol = S.simulate(0, 50);
+cumulative_history = cumulative_history.concat(sol);
+cumulative_history.plot('plot_1');
+
+S.removeSpecies('Godzilla');
+S.removeSpecies('wolf');
+S.compile();
+sol = S.simulate(0, 50);
+cumulative_history = cumulative_history.concat(sol);
+cumulative_history.plot('plot_2');
+
+S.removeInteractionsByName('predator-prey');
+sol = S.simulate(0, 10);
+cumulative_history = cumulative_history.concat(sol);
+cumulative_history.plot('plot_3');
 
 // Instantiate another predator-prey interaction inside the virtual ecology
 // Now we have a food web with three trophic levels
@@ -156,5 +175,7 @@ console.log(sol5.time[sol5.time.length-1], Object.keys(sol5.trajectory))
 //});
 
 </script>
-<div id="placeholder" style="width:900px;height:450px"></div>
+<div id="plot_1" style="width:900px;height:450px"></div>
+<div id="plot_2" style="width:900px;height:450px"></div>
+<div id="plot_3" style="width:900px;height:450px"></div>
 </body></html>

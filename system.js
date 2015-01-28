@@ -669,9 +669,6 @@ var System = {
     	var initial_values = [];
 		var i_sp = 0;
 		for (var sp in this.species) {
-			console.log(i_sp, sp);
-			console.log(Object.keys(this.model).length, this.model);
-
 			// Compile the rate_law for this species and attach to the System.model field
 			if (this.species[sp].rate_law.expression != null) {
 				this.species[sp].rate_law.expression.toString();
@@ -699,9 +696,17 @@ var System = {
 			//console.log('Substituted Rule:', r_id );
 			//this.interactions[name].rules[r_id].toString();
 		}
+		// Execute simulation
 		var solution = numeric.dopri(t0,tf,initial_values,this.dY,1e-6,10000, function() {return -1}, [
 		this]);
-		return new Simulation(Object.keys(this.species), solution);
+		var simulation = new Simulation(Object.keys(this.species), solution);
+		console.log(simulation);
+		// Update the value of Species objects to their final value at end of simulation
+		for (var sp in this.species) {
+			console.log(sp);
+			this.species[sp].value = simulation.trajectory[sp][simulation.trajectory[sp].length-1];
+		}
+		return simulation;
 		//return this.odeInt(initial_values, 0, 0.1, 100);
 	},
 	
@@ -713,12 +718,12 @@ var System = {
 	compile: function() {
 		
 		// Initialize rate law expressions
-		for (sp in this.species) {
+		for (var sp in this.species) {
 			this.species[sp].rate_law.expression = null;
 		}
 		// Gather all the mathematical terms contained in Interaction rules and
 		// build them into a rate law 
-		for(i in this._interactions) {
+		for(var i in this._interactions) {
 			var interaction = this._interactions[i];
 			participant_ids = interaction.variables();
 			for(i_p in participant_ids) {

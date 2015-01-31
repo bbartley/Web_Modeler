@@ -43,6 +43,13 @@ S.addInteraction('predator-prey', ['hare', 'fox'], ['beta', 'gamma']);
 // Simulate
 S.compile();
 sol = S.simulate(0, 40);
+sol.plot('plot_1');
+
+C = new Config();
+sol = S.simulate_in_real_time(40, C);
+sol.plot('plot_2');
+throw new Error();
+
 cumulative_history = sol;
 
 // Add another predator 

@@ -468,11 +468,33 @@ function Simulation(species, solution) {
 }
 
 /**
+A Config object contains configuration options for real-time animation.
+@class Config
+@constructor
+*/
+function Config() {
+	this.current_state = [];
+	this.initial_state = [];
+	this.state_history = {};  // trajectories of 1 or more state variables
+	this.t_plus = [0];
+	this.t_minus = [0];
+	this.fps = 80;
+	this.refresh_rate = 1/this.fps * 1000;   // milliseconds
+	this.t_scale = 5;  // 1 second of clock time corresponds to 100 seconds real time
+}
+
+/**
 System is the main class.  A System may represent a biochemical system or an ecological system that
 can be simulated.
 @class System
 */
 var System = {
+	/**
+	Configuration options for simulation and real-time animation.
+	@property {Config} config
+	*/
+	config: new Config(),	
+	
 	/**
 	Species objects belonging to a System may be referenced by name through the System.species property.
 	@property {Object} species
@@ -815,7 +837,42 @@ var System = {
 		}
 		sol = { x: t, y: Y };  // Solution is structured the same as that returned by numeric.dopri
 		return sol;
+	},
+	
+	simulate_in_real_time: function(run_time, config) {
+        var t_step = config.refresh_rate / 1000 * config.t_scale  // in units of seconds
+		var i_stop  = run_time / t_step;
+		console.log(t_step, i_stop);
+		var state_history = new Simulation(null, null);
+		// Initialize state vector from the current value of Species objects 
+		var initial_state = [];
+		for (var sp in this.species) {
+			initial_state.push(this.species[sp].value);
+		}
+		for (var i=0; i <=i_stop; i++) {
+			console.log(i);
+			var solution = numeric.dopri(0,t_step,initial_state,this.dY,1e-6,10000, function() {return -1}, [
+					this]);
+			var new_state = new Simulation(Object.keys(this.species), solution);
+			// Update the value of Species objects to their final value at end of simulation
+			var initial_state = [];
+			for (var sp in this.species) {
+				var new_value = new_state.trajectory[sp][new_state.trajectory[sp].length-1];
+				this.species[sp].value = new_value;
+				initial_state.push(new_value);
+			}
+			// Update the System's cumulative state history
+			if (state_history.time.length == 0) {
+				state_history = new_state;
+			} else {
+				state_history = state_history.concat(new_state);
+			}
+			//console.log(initial_state);
+			//console.log(new_state);
+			//console.log(state_history);
+			//throw new Error();
+		}
+		return state_history;
 	}
-
 }	
 

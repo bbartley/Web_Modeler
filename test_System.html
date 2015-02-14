@@ -40,15 +40,22 @@ S.addInteraction('exponential growth', ['hare'], ['alpha']);
 S.addInteraction('death, first-order', ['fox'], ['delta']);
 S.addInteraction('predator-prey', ['hare', 'fox'], ['beta', 'gamma']);
 
-// Simulate
-S.compile();
-sol = S.simulate(0, 40);
-sol.plot('plot_1');
-
 C = new Config();
-sol = S.simulate_in_real_time(40, C);
-sol.plot('plot_2');
+S.compile();
+console.log(S.model);
+S.simulate_in_real_time('plot_1', C);
 throw new Error();
+// Simulate
+// S.compile();
+//sol = S.simulate(0, 40);
+//sol.plot('plot_1');
+//console.log(Object.keys(sol.trajectory));
+
+//C = new Config();
+//sol = S.simulate_in_real_time(40, C);
+//sol.plot('plot_2');
+//console.log(Object.keys(sol.trajectory));
+//throw new Error();
 
 cumulative_history = sol;
 

@@ -385,28 +385,43 @@ Simulation objects contain the results of a dynamic simulation of a model system
 when it was simulated
 @param {Object} solution An object returned by numeric.dopri ODE integrator
 */
-function Simulation(species, solution) {
+function Simulation(system, solution) {
+	/**
+	Contains the time points corresponding to the state trajectory.
+	@property {Array} time
+	*/
+	this.time = [0];
+	if (solution) {
+		this.time = solution.x;
+	}
+	
 	/**
 	The trajectory contains the dynamic time series for each species.
 	@property {Object} trajectory
 	*/
     this.trajectory = {};
-	
-	/**
-	Contains the time points corresponding to the state trajectory.
-	@property {Array} time
-	*/
-	this.time = [];
-	
 	// Initialize the trajectory dictionary with state trajectories for each species listed in 
 	// the argument. The trajectories are found by re-arranging the integrator's solution object
-	if (species && solution) {
-		this.time = solution.x;
-		var y = numeric.transpose(solution.y)
-		for (i_sp = 0; i_sp < species.length; i_sp++) {
-			this.trajectory[species[i_sp]] = y[i_sp];
+	if (system) {
+		if (solution) {
+			var y = numeric.transpose(solution.y)
+			for (sp in system.species) {
+				this.trajectory[sp] = y[Object.keys(system.species).indexOf(sp)]
+			}
+		} else {
+			for (sp in system.species) {
+				this.trajectory[sp] = [ system.species[sp].value ];
+			}
 		}
 	}
+		
+	// if (species && solution) {
+		// this.time = solution.x;
+		// var y = numeric.transpose(solution.y)
+		// for (i_sp = 0; i_sp < species.length; i_sp++) {
+			// this.trajectory[species[i_sp]] = y[i_sp];
+		// }
+	// }
 			
 	/**
 	Concatenate trajectories from two simulation objects. 
@@ -447,23 +462,93 @@ function Simulation(species, solution) {
 		concatenated_simulation.trajectory = concatenated_trajectory;
 		return concatenated_simulation;
 	}
+
+	/**
+	Trim old state history that exceeds the time window specified by the buffer_size parameter
+	@method trim
+	@param {Number} buffer_size The time window
+	*/
+	this.trim = function(buffer_size) {
+		var t0 = this.time[this.time.length-1] - buffer_size;
+		var i_t0 = this.time.indexOf(t0);
+		for (var i_t=0; i_t < i_t0; i_t++) {
+			this.time.shift();
+		}
+		for (var id_tr in this.trajectory) {
+			for (var i_t=0; i_t < i_t0; i_t++) {
+				this.trajectory[id_tr].shift();
+			}
+		}
+		return this;
+	}
 	
 	/**
 	Plot Simulation trajectories.
 	@method plot
 	@param div DOM element in which the plot will be inserted into html page
 	*/
-	this.plot = function(div) {
+	this.plot = function(div, plot_config) {
 		var species = Object.keys(this.trajectory);
 		var data = [];
 		for (i_sp in species) {
 			var series = numeric.transpose([this.time, this.trajectory[species[i_sp]]]);
 			data.push({data:series});
 		}
-		console.log(data);
-		var p = [numeric.transpose([this.time, this.trajectory[species[0]]])];
-		console.log(p);
-		$(function() { $.plot("#" + div, data); });
+
+
+		$(function() { $.plot("#" + div, data, plot_config); });
+	}
+	
+	this.update_state = function(system, config, div) {
+		// Construct and initial values vector for the integrator 
+		var initial_values = [];
+		for (var id_tr in this.trajectory) {
+			initial_values.push(this.trajectory[id_tr][this.trajectory[id_tr].length-1]);
+		}
+
+		// Simulate for one time step
+		var t_step = config.refresh_rate / 1000 * config.t_scale;  // in units of seconds
+		var solution = numeric.dopri(0,t_step,initial_values,system.dY,1e-6,10000, function() {return -1}, [
+				system]);
+		
+		// Update the Simulation object's state trajectory
+		var y = numeric.transpose(solution.y)
+		for (var id_tr in this.trajectory) {
+			var i_y = Object.keys(this.trajectory).indexOf(id_tr);
+			this.trajectory[id_tr] = this.trajectory[id_tr].concat(y[i_y]);
+		}
+		// Update the System's state
+		//for (var id_sp in system.species) {
+		//	system.species[id_sp].value = this.trajectory[id_sp][this.trajectory[id_sp].length-1];
+		//}
+		
+		// Update the time vector
+		var t_offset = this.time[this.time.length-1];
+		this.time = this.time.concat(solution.x.map(function(t) { return t + t_offset; }));
+		
+		// If the state history exceeds the buffer, remove stale
+		// part of the history
+		var state_history_length = this.time[this.time.length-1] - this.time[0];
+		if (state_history_length > config.buffer_size) {
+			this.trim(config.buffer_size);
+		}
+
+		var t_min = this.time[0];
+		var t_max = this.time[0] + config.buffer_size;
+		var plot_config = {
+			series: {
+				shadowSize: 0	// Drawing is faster without shadows
+			},
+			yaxis: {
+				min: 0,
+				max: 100
+			},
+			xaxis: {
+				min: t_min,
+				max: t_max
+			}
+		}		
+		this.plot(div, plot_config);
 	}
 }
 
@@ -478,9 +563,11 @@ function Config() {
 	this.state_history = {};  // trajectories of 1 or more state variables
 	this.t_plus = [0];
 	this.t_minus = [0];
+	this.run_time = 10000; // animation time in milliseconds
 	this.fps = 80;
 	this.refresh_rate = 1/this.fps * 1000;   // milliseconds
-	this.t_scale = 5;  // 1 second of clock time corresponds to 100 seconds real time
+	this.buffer_size = 10;  // simulation time
+	this.t_scale = 10;  // 1 second of clock time corresponds to 10 seconds simulation time
 }
 
 /**
@@ -743,6 +830,7 @@ var System = {
 		for (var sp in this.species) {
 			this.species[sp].rate_law.expression = null;
 		}
+		
 		// Gather all the mathematical terms contained in Interaction rules and
 		// build them into a rate law 
 		for(var i in this._interactions) {
@@ -765,6 +853,20 @@ var System = {
 						new math.expression.node.OperatorNode('+','add', [participant.rate_law.expression, 
 						interaction.rules[participant_id].expression.clone()]);				
 				}
+			}
+		}
+		// Compile the rate_laws and attach to the System.model field
+		for (var sp in this.species) {
+			var i_sp = Object.keys(this.species).indexOf(sp); 
+			console.log(i_sp, sp);
+			if (this.species[sp].rate_law.expression != null) {
+				this.species[sp].rate_law.expression.toString();
+				this.model[i_sp] = this.species[sp].rate_law.expression.compile(math)
+			} else {
+				// @todo What to do if a rate law for a species has not been defined?
+				// @todo move to System constructor
+				// For now just assume that its rate of change is zero
+				this.model[i_sp] = math.compile("0");
 			}
 		}
 	},
@@ -790,9 +892,9 @@ var System = {
 		// @TODO:  add validation step here.  Check for valid System object passed in params argument
 		system = params[0];
 		var species_ids = Object.keys(system.species);
-		if (t==0){
-			console.log(species_ids);
-		}
+		//if (t==0){
+		//	console.log(species_ids);
+		//}
 		var dy = [];
 		// Construct a scope object by mapping the current values of the javascript simulation variable
 		// with the corresponding variable identifier in the System scope (ie, the species id)
@@ -806,9 +908,9 @@ var System = {
 			//scope[p] = this.parameters[p].value;
 			scope[p] = system.parameters[p].value;
 		}
-		if (t==0){
-			console.log('Scope:',scope);
-		}
+		//if (t==0){
+		//	console.log('Scope:',scope);
+		//}
 		
 		// Calculate the differentials in the System parser scope,
 		// then copy back to the javascript simulation variable
@@ -839,40 +941,55 @@ var System = {
 		return sol;
 	},
 	
-	simulate_in_real_time: function(run_time, config) {
-        var t_step = config.refresh_rate / 1000 * config.t_scale  // in units of seconds
-		var i_stop  = run_time / t_step;
-		console.log(t_step, i_stop);
-		var state_history = new Simulation(null, null);
-		// Initialize state vector from the current value of Species objects 
-		var initial_state = [];
-		for (var sp in this.species) {
-			initial_state.push(this.species[sp].value);
-		}
-		for (var i=0; i <=i_stop; i++) {
-			console.log(i);
-			var solution = numeric.dopri(0,t_step,initial_state,this.dY,1e-6,10000, function() {return -1}, [
-					this]);
-			var new_state = new Simulation(Object.keys(this.species), solution);
-			// Update the value of Species objects to their final value at end of simulation
-			var initial_state = [];
-			for (var sp in this.species) {
-				var new_value = new_state.trajectory[sp][new_state.trajectory[sp].length-1];
-				this.species[sp].value = new_value;
-				initial_state.push(new_value);
-			}
-			// Update the System's cumulative state history
-			if (state_history.time.length == 0) {
-				state_history = new_state;
-			} else {
-				state_history = state_history.concat(new_state);
-			}
-			//console.log(initial_state);
-			//console.log(new_state);
-			//console.log(state_history);
-			//throw new Error();
-		}
-		return state_history;
+	simulate_in_real_time: function(div) {
+		var state_history = new Simulation(this, null);
+		var sys = this;
+		var real_time_simulation = setInterval(function() { 
+			state_history.update_state(sys, sys.config, div); },
+			sys.config.refresh_rate);
 	}
+	// simulate_in_real_time: function(div, run_time, config) {
+        // var t_step = config.refresh_rate / 1000 * config.t_scale;  // in units of seconds
+		// var i_stop  = run_time / t_step;
+		// var state_history = new Simulation(null, null);
+		// console.log(state_history);
+		// // Initialize state vector from the current value of Species objects 
+		// var initial_state = [];
+		// for (var sp in this.species) {
+			// initial_state.push(this.species[sp].value);
+		// }
+		// for (var i=0; i <= i_stop; i++) {
+			// var solution = numeric.dopri(0,t_step,initial_state,this.dY,1e-6,10000, function() {return -1}, [
+					// this]);
+			// var new_state = new Simulation(Object.keys(this.species), solution);
+			// // Update the value of Species objects to their final value at end of simulation
+			// var initial_state = [];
+			// for (var sp in this.species) {
+				// var new_value = new_state.trajectory[sp][new_state.trajectory[sp].length-1];
+				// this.species[sp].value = new_value;
+				// initial_state.push(new_value);
+			// }
+			// // Update the System's cumulative state history.
+			// // If the state history exceeds the buffer, remove stale
+			// // part of the state history
+			// console.log(state_history);
+			// if (state_history.time.length == 0) {
+				// state_history = new_state;
+			// } else {
+				// var time_window = state_history.time[state_history.time.length-1] - state_history[0];
+				// if (time_window < config.buffer_size) {
+					// state_history = state_history.concat(new_state);
+				// } else {
+					// state_history = state_history.concat(new_state);
+					// state_history = state_history.trim(config.buffer_size);
+				// }
+			// }
+			// //console.log(initial_state);
+			// //console.log(new_state);
+			// //console.log(state_history);
+			// //throw new Error();
+		// }
+		// return state_history;
+	// }
 }	
 

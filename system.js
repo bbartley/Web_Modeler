@@ -415,13 +415,7 @@ function Simulation(system, solution) {
 		}
 	}
 		
-	// if (species && solution) {
-		// this.time = solution.x;
-		// var y = numeric.transpose(solution.y)
-		// for (i_sp = 0; i_sp < species.length; i_sp++) {
-			// this.trajectory[species[i_sp]] = y[i_sp];
-		// }
-	// }
+	this.real_time_simulation = null;
 			
 	/**
 	Concatenate trajectories from two simulation objects. 
@@ -563,10 +557,11 @@ function Config() {
 	this.state_history = {};  // trajectories of 1 or more state variables
 	this.t_plus = [0];
 	this.t_minus = [0];
-	this.run_time = 10000; // animation time in milliseconds
+	this.run_time = 10000; // maximum animation time in milliseconds
 	this.fps = 80;
 	this.refresh_rate = 1/this.fps * 1000;   // milliseconds
 	this.buffer_size = 10;  // simulation time
+	//this.t_scale = 1;  // 1 second of clock time corresponds to 10 seconds simulation time
 	this.t_scale = 10;  // 1 second of clock time corresponds to 10 seconds simulation time
 }
 
@@ -944,10 +939,12 @@ var System = {
 	simulate_in_real_time: function(div) {
 		var state_history = new Simulation(this, null);
 		var sys = this;
-		var real_time_simulation = setInterval(function() { 
+		state_history.real_time_simulation = setInterval(function() { 
 			state_history.update_state(sys, sys.config, div); },
 			sys.config.refresh_rate);
+		return state_history;
 	}
+
 	// simulate_in_real_time: function(div, run_time, config) {
         // var t_step = config.refresh_rate / 1000 * config.t_scale;  // in units of seconds
 		// var i_stop  = run_time / t_step;

@@ -1,195 +1,220 @@
-<html><body>
-<script type="text/javascript" src="numeric-1.2.6.js"></script>
-<script type="text/javascript" src="math.js"></script>
-<script type="text/javascript" src="system.js"></script>
-<script type="text/javascript" src="flot/jquery.js"></script>
-<script type="text/javascript" src="flot/jquery.flot.js"></script>
-<script type="text/javascript">
 
-// Demonstration script starts here
-var S = Object.create(System);
+<html>
+<head>
+    <script type="text/javascript" src="numeric-1.2.6.js"></script>
+    <script type="text/javascript" src="math.js"></script>
+    <script type="text/javascript" src="system.js"></script>
+    <script type="text/javascript" src="flot/jquery.js"></script>
+    <script type="text/javascript" src="flot/jquery.flot.js"></script>
+    <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script> -->
+    <link rel="stylesheet" type="text/css" href="style.css">
 
-// Populate the 'virtual ecology'
-console.log(S.species, S.model);
-S.addSpecies('hare', 1, null );
-console.log(S.species, S.model);
-S.addSpecies('fox', 1, null );
-console.log(S.species, S.model);
+</head>
 
-// Initialize parameters
-S.addParameter('alpha', 1., 'prey specific growth rate')
-S.addParameter('beta', .01, 'predation rate constant')
-S.addParameter('gamma', 1., 'trophic efficiency')
-S.addParameter('delta', 1., 'predator death rate constant')
+<body>
+    <div id="plot_1" style="width:900px;height:450px"></div>
+    <div id="apple" class="button"></div>
+    <div id="plot_2" style="width:900px;height:450px"></div>
+    <div id="plot_3" style="width:900px;height:450px"></div>
+</body>
 
-// Define a one species interaction 
-S.defineInteraction('exponential growth', ['A']);
-S.interactions['exponential growth'].rules['A'].set('alpha * A');
+<foot>
+    <script>
 
-// Define another 
-S.defineInteraction('death, first-order', ['A']);
-S.interactions['death, first-order'].rules['A'].set('-alpha * A');
+    // Demonstration script starts here
+    var S = Object.create(System);
 
-// Define a two species interaction
-S.defineInteraction('predator-prey', ['prey', 'predator']);
-S.interactions['predator-prey'].rules['prey'].set('-k * prey * predator');
-S.interactions['predator-prey'].rules['predator'].set('k * e * prey * predator');
+    // Populate the 'virtual ecology'
+    console.log(S.species, S.model);
+    S.addSpecies('hare', 1, null);
+    console.log(S.species, S.model);
+    S.addSpecies('fox', 1, null);
+    console.log(S.species, S.model);
 
-// Instantiate a predator-prey interaction inside the virtual ecology
-S.addInteraction('exponential growth', ['hare'], ['alpha']);
-S.addInteraction('death, first-order', ['fox'], ['delta']);
-S.addInteraction('predator-prey', ['hare', 'fox'], ['beta', 'gamma']);
+    // Initialize parameters
+    S.addParameter('alpha', 1., 'prey specific growth rate')
+    S.addParameter('beta', .01, 'predation rate constant')
+    S.addParameter('gamma', 1., 'trophic efficiency')
+    S.addParameter('delta', 1., 'predator death rate constant')
 
-C = new Config();
-S.compile();
-console.log(S.model);
-S.simulate_in_real_time('plot_1', C);
-throw new Error();
-// Simulate
-// S.compile();
-//sol = S.simulate(0, 40);
-//sol.plot('plot_1');
-//console.log(Object.keys(sol.trajectory));
+    // Define a one species interaction
+    S.defineInteraction('exponential growth', ['A']);
+    S.interactions['exponential growth'].rules['A'].set('alpha * A');
 
-//C = new Config();
-//sol = S.simulate_in_real_time(40, C);
-//sol.plot('plot_2');
-//console.log(Object.keys(sol.trajectory));
-//throw new Error();
+    // Define another
+    S.defineInteraction('death, first-order', ['A']);
+    S.interactions['death, first-order'].rules['A'].set('-alpha * A');
 
-cumulative_history = sol;
+    // Define a two species interaction
+    S.defineInteraction('predator-prey', ['prey', 'predator']);
+    S.interactions['predator-prey'].rules['prey'].set('-k * prey * predator');
+    S.interactions['predator-prey'].rules['predator'].set('k * e * prey * predator');
 
-// Add another predator 
-S.addSpecies('wolf', 1, null );
+    // Instantiate a predator-prey interaction inside the virtual ecology
+    S.addInteraction('exponential growth', ['hare'], ['alpha']);
+    S.addInteraction('death, first-order', ['fox'], ['delta']);
+    S.addInteraction('predator-prey', ['hare', 'fox'], ['beta', 'gamma']);
 
-// Instantiate another predator-prey interaction inside the virtual ecology
-// Now we have a food web with three trophic levels
-S.addInteraction('predator-prey', ['fox', 'wolf'], ['beta', 'gamma']);
-S.addInteraction('death, first-order', ['wolf'], ['delta']);
+    C = new Config();
+    S.compile();
+    console.log(S.model);
+    var rt = S.simulate_in_real_time('plot_1', C);
 
-// Simulate again
-S.compile();
-sol = S.simulate(0, 100);
-cumulative_history = cumulative_history.concat(sol);
+    $("#apple").click(function () {
+        //clearInterval(rt);
+        clearInterval(rt.real_time_simulation);
+        var len = rt.time.length;
+        for (var tr_id in rt.trajectory) {
+            window.console.log(len, tr_id, rt.trajectory[tr_id][len-1] )
+            rt.trajectory[tr_id][len-1] = 2 * rt.trajectory[tr_id][len-1];
+        }
+        rt.real_time_simulation = setInterval(function () {
+            rt.update_state(S, S.config, 'plot_1'); }, S.config.refresh_rate);
+    });
+    //throw new Error();
+    //// Simulate
+    //// S.compile();
+    ////sol = S.simulate(0, 40);
+    ////sol.plot('plot_1');
+    ////console.log(Object.keys(sol.trajectory));
 
-// Add another predator 
-S.addSpecies('Godzilla', 100, null );
+    ////C = new Config();
+    ////sol = S.simulate_in_real_time(40, C);
+    ////sol.plot('plot_2');
+    ////console.log(Object.keys(sol.trajectory));
+    ////throw new Error();
 
-// Now we have a food web with FOUR trophic levels
-S.addInteraction('predator-prey', ['wolf', 'Godzilla'], ['beta', 'gamma']);
-S.addInteraction('predator-prey', ['fox', 'Godzilla'], ['beta', 'gamma']);
-S.addInteraction('death, first-order', ['Godzilla'], ['delta']);
+    //cumulative_history = sol;
 
-// Simulate again
-S.compile();
-sol = S.simulate(0, 100);
-cumulative_history = cumulative_history.concat(sol);
+    //// Add another predator
+    //S.addSpecies('wolf', 1, null );
 
-// Test remove methods
-S.removeInteractionsBySpecies(['Godzilla']);
-S.compile();
-sol = S.simulate(0, 50);
-cumulative_history = cumulative_history.concat(sol);
-cumulative_history.plot('plot_1');
+    //// Instantiate another predator-prey interaction inside the virtual ecology
+    //// Now we have a food web with three trophic levels
+    //S.addInteraction('predator-prey', ['fox', 'wolf'], ['beta', 'gamma']);
+    //S.addInteraction('death, first-order', ['wolf'], ['delta']);
 
-S.removeSpecies('Godzilla');
-S.removeSpecies('wolf');
-S.compile();
-sol = S.simulate(0, 50);
-cumulative_history = cumulative_history.concat(sol);
-cumulative_history.plot('plot_2');
+    //// Simulate again
+    //S.compile();
+    //sol = S.simulate(0, 100);
+    //cumulative_history = cumulative_history.concat(sol);
 
-S.removeInteractionsByName('predator-prey');
-sol = S.simulate(0, 10);
-cumulative_history = cumulative_history.concat(sol);
-cumulative_history.plot('plot_3');
+    //// Add another predator
+    //S.addSpecies('Godzilla', 100, null );
 
-// Instantiate another predator-prey interaction inside the virtual ecology
-// Now we have a food web with three trophic levels
-//S.addInteraction('predator-prey', ['Godzilla', 'wolf'], ['beta', 'gamma']);
-//S.addInteraction('predator-prey', ['Godzilla', 'wolf'], ['beta', 'gamma']);
-//S.addInteraction('death, first-order', ['wolf'], ['delta2']);
+    //// Now we have a food web with FOUR trophic levels
+    //S.addInteraction('predator-prey', ['wolf', 'Godzilla'], ['beta', 'gamma']);
+    //S.addInteraction('predator-prey', ['fox', 'Godzilla'], ['beta', 'gamma']);
+    //S.addInteraction('death, first-order', ['Godzilla'], ['delta']);
 
+    //// Simulate again
+    //S.compile();
+    //sol = S.simulate(0, 100);
+    //cumulative_history = cumulative_history.concat(sol);
 
-// Plot cumulative trajectories
-//sol3 = sol.concat(sol2);
-//sol3.plot();
+    //// Test remove methods
+    //S.removeInteractionsBySpecies(['Godzilla']);
+    //S.compile();
+    //sol = S.simulate(0, 50);
+    //cumulative_history = cumulative_history.concat(sol);
+    //cumulative_history.plot('plot_1');
 
+    //S.removeSpecies('Godzilla');
+    //S.removeSpecies('wolf');
+    //S.compile();
+    //sol = S.simulate(0, 50);
+    //cumulative_history = cumulative_history.concat(sol);
+    //cumulative_history.plot('plot_2');
 
+    //S.removeInteractionsByName('predator-prey');
+    //sol = S.simulate(0, 10);
+    //cumulative_history = cumulative_history.concat(sol);
+    //cumulative_history.plot('plot_3');
 
-
-
-
-
-
-
-//S.addSpecies('X2', 1, 'eagle');
-//sol2 = S.simulate();
-//sol3 = sol.concat(sol2);
-//sol3.plot();
-//S.add_function('f', 'alpha * P0', 'prey growth rate')
-//S.add_function('g', 'beta * P0 * P1', 'functional response')
-//S.add_function('h', 'gamma * g', 'numerical_response')
-//S.add_function('i', 'delta * P1', 'predator death')
-//S.species['P0'].rate_law.set('f - g')
-//S.species['P1'].rate_law.set('h - i')
-//S.addParameter('DELTA', .1, 'hormonal delay');
+    //// Instantiate another predator-prey interaction inside the virtual ecology
+    //// Now we have a food web with three trophic levels
+    ////S.addInteraction('predator-prey', ['Godzilla', 'wolf'], ['beta', 'gamma']);
+    ////S.addInteraction('predator-prey', ['Godzilla', 'wolf'], ['beta', 'gamma']);
+    ////S.addInteraction('death, first-order', ['wolf'], ['delta2']);
 
 
-//S.addRule('g', 'g(S,K)=S/(S+K)', 'Hyperbolic');
-//S.addRule('h', 'h(a,b,k) = k - a - b', 'self-inhibition');
-//S.addRule('alpha', 'alpha(g)=1/g', 'agonist function');
-//S.addRule('beta', 'beta(g)=g', 'antagonist function');
-//S.addRule('dX0', 'dX0(G, A, B, input, a, b, eta) = input + a*A - b*B - eta * G');
-//S.addRule('dX1', 'dX1(G, A, B, k, delta) = A * ( alpha(G)*h(A,B,k) - delta )');
-//S.addRule('dX2', 'dX2(G, A, B, k, delta) = B * ( beta(G)*h(A,B,k) - delta )');
+    //// Plot cumulative trajectories
+    ////sol3 = sol.concat(sol2);
+    ////sol3.plot();
 
-//S.species['X0'].rate_law.set('A * ( 1 / G * h - delta )')
-//S.species['X1'].rate_law.set('B * ( G * h - delta )')
-//S.species['X2'].rate_law.set('input + alpha * A - beta * B - eta * G')
 
-//console.log(S.parser.eval('X1'));
-//console.log(S.parser.eval('X2'));
-//console.log(S.parser.eval('dX0(X0,X1,X2,INPUT,A,B,ETA)'));
-//console.log(S.parser.eval('dX1(X0,X1,X2,K,DELTA)'));
-//console.log(S.parser.eval('dX2(X0,X1,X2,K,DELTA)'));
 
-//S.defineInteraction('predator-prey', ['A', 'B']);
-//S.interactions['predator-prey'].rules['A'].set('-k*A*B', 'functional response');
-//S.interactions['predator-prey'].rules['B'].set('-k*e*A*B', 'functional response');
 
-//S.interactions['predator-prey'].addRule('A', '-k*A*B', 'functional response');
-//S.interactions['predator-prey'].addRule('B', 'k*e*A*B', 'numerical response');
-//S.defineInteraction('exponential growth');
-//S.interactions['exponential growth'].addRule('A', 'k*A', 'exponential growth');
-//S.defineInteraction('first-order decay');
-//S.interactions['first-order decay'].addRule('A', '-k*A', 'first order decay');
 
-//S.addInteraction('predator-prey', ['X0','X1'], ['beta', 'gamma']);
-//S.addInteraction('predator-prey', ['X1','X2'], ['beta', 'gamma']);
 
-//S.interactions['predator-prey']
-//S.addInteraction('exponential-growth', ['X0'], ['alpha']);
-//S.addInteraction('exponential-growth', ['X0'], ['alpha']);
 
-//t = sol.x;
-//y = numeric.transpose(sol.y);
-//p = [numeric.transpose([t, y[0]])];
-//$(function() {
-//
-//	$.plot("#placeholder", p);
-//
-//});
-//S.addInteraction('first-order decay', ['X1'], ['delta']);
-//var node = math.parse('g()');
-//node.traverse(function (node, path, parent) {
-//   if (node.type == 'SymbolNode') {
-//      console.log(node.name);
-//   }
-//});
 
-</script>
-<div id="plot_1" style="width:900px;height:450px"></div>
-<div id="plot_2" style="width:900px;height:450px"></div>
-<div id="plot_3" style="width:900px;height:450px"></div>
-</body></html>
+
+    ////S.addSpecies('X2', 1, 'eagle');
+    ////sol2 = S.simulate();
+    ////sol3 = sol.concat(sol2);
+    ////sol3.plot();
+    ////S.add_function('f', 'alpha * P0', 'prey growth rate')
+    ////S.add_function('g', 'beta * P0 * P1', 'functional response')
+    ////S.add_function('h', 'gamma * g', 'numerical_response')
+    ////S.add_function('i', 'delta * P1', 'predator death')
+    ////S.species['P0'].rate_law.set('f - g')
+    ////S.species['P1'].rate_law.set('h - i')
+    ////S.addParameter('DELTA', .1, 'hormonal delay');
+
+
+    ////S.addRule('g', 'g(S,K)=S/(S+K)', 'Hyperbolic');
+    ////S.addRule('h', 'h(a,b,k) = k - a - b', 'self-inhibition');
+    ////S.addRule('alpha', 'alpha(g)=1/g', 'agonist function');
+    ////S.addRule('beta', 'beta(g)=g', 'antagonist function');
+    ////S.addRule('dX0', 'dX0(G, A, B, input, a, b, eta) = input + a*A - b*B - eta * G');
+    ////S.addRule('dX1', 'dX1(G, A, B, k, delta) = A * ( alpha(G)*h(A,B,k) - delta )');
+    ////S.addRule('dX2', 'dX2(G, A, B, k, delta) = B * ( beta(G)*h(A,B,k) - delta )');
+
+    ////S.species['X0'].rate_law.set('A * ( 1 / G * h - delta )')
+    ////S.species['X1'].rate_law.set('B * ( G * h - delta )')
+    ////S.species['X2'].rate_law.set('input + alpha * A - beta * B - eta * G')
+
+    ////console.log(S.parser.eval('X1'));
+    ////console.log(S.parser.eval('X2'));
+    ////console.log(S.parser.eval('dX0(X0,X1,X2,INPUT,A,B,ETA)'));
+    ////console.log(S.parser.eval('dX1(X0,X1,X2,K,DELTA)'));
+    ////console.log(S.parser.eval('dX2(X0,X1,X2,K,DELTA)'));
+
+    ////S.defineInteraction('predator-prey', ['A', 'B']);
+    ////S.interactions['predator-prey'].rules['A'].set('-k*A*B', 'functional response');
+    ////S.interactions['predator-prey'].rules['B'].set('-k*e*A*B', 'functional response');
+
+    ////S.interactions['predator-prey'].addRule('A', '-k*A*B', 'functional response');
+    ////S.interactions['predator-prey'].addRule('B', 'k*e*A*B', 'numerical response');
+    ////S.defineInteraction('exponential growth');
+    ////S.interactions['exponential growth'].addRule('A', 'k*A', 'exponential growth');
+    ////S.defineInteraction('first-order decay');
+    ////S.interactions['first-order decay'].addRule('A', '-k*A', 'first order decay');
+
+    ////S.addInteraction('predator-prey', ['X0','X1'], ['beta', 'gamma']);
+    ////S.addInteraction('predator-prey', ['X1','X2'], ['beta', 'gamma']);
+
+    ////S.interactions['predator-prey']
+    ////S.addInteraction('exponential-growth', ['X0'], ['alpha']);
+    ////S.addInteraction('exponential-growth', ['X0'], ['alpha']);
+
+    ////t = sol.x;
+    ////y = numeric.transpose(sol.y);
+    ////p = [numeric.transpose([t, y[0]])];
+    ////$(function() {
+    ////
+    ////	$.plot("#placeholder", p);
+    ////
+    ////});
+    ////S.addInteraction('first-order decay', ['X1'], ['delta']);
+    ////var node = math.parse('g()');
+    ////node.traverse(function (node, path, parent) {
+    ////   if (node.type == 'SymbolNode') {
+    ////      console.log(node.name);
+    ////   }
+    ////});
+
+    </script>
+</foot>
+</html>

@@ -1,0 +1,80 @@
+
+<html>
+<head>
+    <script type="text/javascript" src="numeric-1.2.6.js"></script>
+    <script type="text/javascript" src="math.js"></script>
+    <script type="text/javascript" src="system.js"></script>
+    <script type="text/javascript" src="flot/jquery.js"></script>
+    <script type="text/javascript" src="flot/jquery.flot.js"></script>
+    <!-- <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script> -->
+    <link rel="stylesheet" type="text/css" href="style.css">
+
+</head>
+
+<body>
+    <div id="plot_1" style="width:900px;height:450px"></div>
+    <div id="apple" class="button"></div>
+    <div id="plot_2" style="width:900px;height:450px"></div>
+    <div id="plot_3" style="width:900px;height:450px"></div>
+</body>
+
+<foot>
+    <script>
+
+    // Demonstration script starts here
+    var S = Object.create(System);
+
+	S.addSpecies('A',1,null);
+	S.addSpecies('B',1,null);
+	S.addSpecies('G',1,null);
+	S.addParameter('K', 1.);
+	S.addParameter('delta', .1, 'hormonal delay');
+	S.addParameter('input', 1, 'glucose input from tissues');
+	S.addParameter('eta', .1, 'glucose output, ie, excretion');
+	S.addParameter('alpha', 1, 'glucagon sensitivity');
+	S.addParameter('beta', 1, 'insulin sensitivity');
+	//S.add_function('h', 'K - A - B')
+	S.defineInteraction('first order decay', ['a']);
+	S.interactions['first order decay'].rules['a'].set('-alpha * a');
+    S.addInteraction('first order decay', ['A'], ['delta']);
+	S.addInteraction('first order decay', ['B'], ['delta']);
+	S.addInteraction('first order decay', ['G'], ['eta']);
+	
+	S.defineInteraction('third-order agonist', ['a','b', 'g']);
+	S.interactions['third-order agonist'].rules['a'].set('a/g*(k-a-b)');
+	S.interactions['third-order agonist'].rules['g'].set('alpha*a');
+	S.addInteraction('third-order agonist', ['A', 'B', 'G'], ['K', 'alpha']);
+	
+	S.defineInteraction('third-order antagonist', ['a','b', 'g']);
+	S.interactions['third-order antagonist'].rules['b'].set('a*g*(k-a-b)');
+	S.interactions['third-order antagonist'].rules['g'].set('-beta*b');
+	S.addInteraction('third-order antagonist', ['A', 'B', 'G'], ['K', 'beta']);
+	
+	S.defineInteraction('input', ['g']);
+	S.interactions['input'].rules['g'].set('i');
+	S.addInteraction('input', ['G'], ['input']);
+	
+	//S.species['A'].rate_law.set('A * ( 1 / G * (K - A - B) - delta )')
+	//S.species['B'].rate_law.set('B * ( G * (K - A - B) - delta )')
+	//S.species['G'].rate_law.set('input + alpha * A - beta * B - eta * G')
+
+    C = new Config();
+    S.compile();
+    console.log(S.model);
+    var rt = S.simulate_in_real_time('plot_1', C);
+
+    $("#apple").click(function () {
+        //clearInterval(rt);
+        clearInterval(rt.real_time_simulation);
+        var len = rt.time.length;
+        for (var tr_id in rt.trajectory) {
+            window.console.log(len, tr_id, rt.trajectory[tr_id][len-1] )
+            rt.trajectory[tr_id][len-1] = 2 * rt.trajectory[tr_id][len-1];
+        }
+        rt.real_time_simulation = setInterval(function () {
+            rt.update_state(S, S.config, 'plot_1'); }, S.config.refresh_rate);
+    });
+
+    </script>
+</foot>
+</html>

@@ -219,16 +219,18 @@ function InteractionDefinition(system, name, species) {
 		var p_names = [];
 		var variables = this.variables()
 		for (r_id in this.rules) {
-			p_nodes = this.rules[r_id].expression.filter(function (node) { 
-				// return (node.type == 'SymbolNode' && 
-						// !(node.name in variables) &&
-						// !(node.name in parameters));
-				return (node.type == 'SymbolNode' &&
-						variables.indexOf(node.name) == -1 &&
-						parameters.indexOf(node.name) == -1)
-			});
-			p_names = p_nodes.map(function(node) { return (node.name) });
-			parameters = parameters.concat(p_names);
+			if (this.rules[r_id].expression) {
+				p_nodes = this.rules[r_id].expression.filter(function (node) { 
+					// return (node.type == 'SymbolNode' && 
+							// !(node.name in variables) &&
+							// !(node.name in parameters));
+					return (node.type == 'SymbolNode' &&
+							variables.indexOf(node.name) == -1 &&
+							parameters.indexOf(node.name) == -1)
+				});
+				p_names = p_nodes.map(function(node) { return (node.name) });
+				parameters = parameters.concat(p_names);
+			}
 		}
 		return parameters;
 	}
@@ -248,7 +250,13 @@ function Interaction(base, v_args, p_args) {
 		// The following line doesn't work.  Clone() behaves unexpectedly
 		// it appears to copy by reference rather than creating a new expression tree object
 		//new_rule.expression = old_rule.expression.clone();
-		new_rule.set( old_rule.expression.toString() );
+		
+		//Debugging output
+		console.log(Object.keys(base.rules)[i_r]);
+		console.log(old_rule);
+		if (old_rule.expression) {
+			new_rule.set( old_rule.expression.toString() );
+		}
 	}
 	// // Copy the Rules from the base InteractionDefinition
 	// for (var i_arg=0; i_arg < v_args.length; i_arg++) {
@@ -327,19 +335,24 @@ function Interaction(base, v_args, p_args) {
 		// var expression_tree = this.system.interactions[name].rules[r_id].expression.clone();
 		// var expression_tree = math.parse(this.system.interactions[name].rules[r_id].expression.toString());
 		
+		var nodes = [];
+		
 		// Filter SymbolNodes out of the syntax tree
-		var nodes = this.rules[r_id].expression.filter(function (node) { 
-			return (node.type == 'SymbolNode') 
-		});
+		if (this.rules[r_id].expression) {
+			var nodes = this.rules[r_id].expression.filter(function (node) { 
+				return (node.type == 'SymbolNode') 
+			});
 
-		for (i_n = 0; i_n < nodes.length; i_n++) {
-			var node = nodes[i_n];
-			// Look up the argument symbol in the Interaction's local symbol table
-			// then substitute in the expression syntax tree
-			if (Object.keys(symbol_table).indexOf(node.name) != -1) {
-				node.name = symbol_table[node.name];
+			for (i_n = 0; i_n < nodes.length; i_n++) {
+				var node = nodes[i_n];
+				// Look up the argument symbol in the Interaction's local symbol table
+				// then substitute in the expression syntax tree
+				if (Object.keys(symbol_table).indexOf(node.name) != -1) {
+					node.name = symbol_table[node.name];
+				}
 			}
 		}
+	}
 		
 		// Build the syntax tree for the rate law expression
 		// var s_id = symbol_table[r_id]; // Get Species id corresponding to this Rule
@@ -354,7 +367,7 @@ function Interaction(base, v_args, p_args) {
 			// this.system.species[s_id].rate_law.expression = expression_tree.clone();
 		// }
 		// this.system.species[s_id].rate_law.toString();
-	}
+	
 
 	// I tested mathjs library's transform function to replace nodes, but it didn't work
 	// console.log(rule_id);
@@ -535,7 +548,7 @@ function Simulation(system, solution) {
 			},
 			yaxis: {
 				min: 0,
-				max: 100
+				max: 10
 			},
 			xaxis: {
 				min: t_min,
@@ -837,16 +850,19 @@ var System = {
 				var participant_id = participant_ids[i_p]; 
 				var participant = this.species[participant_id];
 				
-				// Initialize the rate law if this is the first time 
-				// this participant Species has been found in an Interaction
-				if (participant.rate_law.expression == null) {
-					participant.rate_law.expression =
-						interaction.rules[participant_id].expression.clone();
-				// ...else add the new term to the rate law
-				} else {
-					participant.rate_law.expression = 
-						new math.expression.node.OperatorNode('+','add', [participant.rate_law.expression, 
-						interaction.rules[participant_id].expression.clone()]);				
+				// Check if the rule is defined first (some rules in an Interaction may be uninitialized)...
+				if (interaction.rules[participant_id].expression) {
+					// Initialize the rate law if this is the first time 
+					// this participant Species has been found in an Interaction
+					if (participant.rate_law.expression == null) {
+						participant.rate_law.expression =
+							interaction.rules[participant_id].expression.clone();
+					// ...else add the new term to the rate law
+					} else {
+						participant.rate_law.expression = 
+							new math.expression.node.OperatorNode('+','add', [participant.rate_law.expression, 
+							interaction.rules[participant_id].expression.clone()]);				
+					}
 				}
 			}
 		}
@@ -898,6 +914,9 @@ var System = {
 		for (var i_y = 0; i_y < y.length; i_y++) {
 			//this.parser.eval(simulation_vars[i_y] + "=" + y[i_y])
 			scope[species_ids[i_y]] = y[i_y];
+		}
+		if (t==0) {
+			console.log(scope);
 		}
 		for (p in system.parameters) {
 			//scope[p] = this.parameters[p].value;

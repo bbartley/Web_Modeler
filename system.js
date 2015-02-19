@@ -561,8 +561,8 @@ function Config() {
 	this.fps = 80;
 	this.refresh_rate = 1/this.fps * 1000;   // milliseconds
 	this.buffer_size = 10;  // simulation time
-	//this.t_scale = 1;  // 1 second of clock time corresponds to 10 seconds simulation time
-	this.t_scale = 10;  // 1 second of clock time corresponds to 10 seconds simulation time
+	//this.t_scale = 10;  // 1 second of clock time corresponds to 10 seconds simulation time
+	this.t_scale = 5;  // 1 second of clock time corresponds to 5 seconds simulation time
 }
 
 /**

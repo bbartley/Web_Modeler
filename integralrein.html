@@ -13,16 +13,23 @@
 
 <body>
     <div id="plot_1" style="width:900px;height:450px"></div>
-    <div id="apple" class="button"><img src="1-Ycx4Bq0pMf.jpg" /></div>
-    <div id="cake" class="button"><img src="cake.jpg" /></div>
-    <div id="grapes" class="button"><img src="grapes.jpg" /></div>
-    <div id="pizza_slice" class="button"><img src="pizza_slice.jpg" /></div>
-    <div id="rice" class="button"><img src="rice.jpg" /></div>
-    <div id="steak" class="button"><img src="steak.jpg" /></div>
-    <div id="plot_2" style="width:900px;height:450px"></div>
-    <div id="plot_3" style="width:900px;height:450px"></div>
-    <div id="plot_2" style="width:900px;height:450px"></div>
-    <div id="plot_3" style="width:900px;height:450px"></div>
+    <div>
+        <div id="play" class="button"><img src="play.png" /></div>
+        <div id="pause" class="button"><img src="pause.png" /></div>
+        <div id="record" class="button"><img src="record.png" /></div>
+    </div>
+    <div>
+        <div id="apple" class="button"><img src="1-Ycx4Bq0pMf.jpg" /></div>
+        <div id="cake" class="button"><img src="cake.jpg" /></div>
+        <div id="grapes" class="button"><img src="grapes.jpg" /></div>
+        <div id="pizza_slice" class="button"><img src="pizza_slice.jpg" /></div>
+        <div id="rice" class="button"><img src="rice.jpg" /></div>
+        <div id="steak" class="button"><img src="steak.jpg" /></div>
+        <div id="plot_2" style="width:900px;height:450px"></div>
+        <div id="plot_3" style="width:900px;height:450px"></div>
+        <div id="plot_2" style="width:900px;height:450px"></div>
+        <div id="plot_3" style="width:900px;height:450px"></div>
+    </div>
 </body>
 
 <foot>
@@ -74,12 +81,38 @@
         //clearInterval(rt);
         clearInterval(rt.real_time_simulation);
         var len = rt.time.length;
-        for (var tr_id in rt.trajectory) {
-            window.console.log(len, tr_id, rt.trajectory[tr_id][len-1] )
-            rt.trajectory[tr_id][len-1] = 2 * rt.trajectory[tr_id][len-1];
-        }
+        rt.trajectory['G'][len - 1] = 2 * rt.trajectory['G'][len - 1];
+        //for (var tr_id in rt.trajectory) {
+        //    window.console.log(len, tr_id, rt.trajectory[tr_id][len-1] )
+        //    rt.trajectory[tr_id][len-1] = 2 * rt.trajectory[tr_id][len-1];
+        //}
         rt.real_time_simulation = setInterval(function () {
             rt.update_state(S, S.config, 'plot_1'); }, S.config.refresh_rate);
+    });
+
+    $("#cake").click(function () {
+        //clearInterval(rt);
+        clearInterval(rt.real_time_simulation);
+        var len = rt.time.length;
+        rt.trajectory['G'][len - 1] = 0.5 * rt.trajectory['G'][len - 1];
+        //for (var tr_id in rt.trajectory) {
+        //    window.console.log(len, tr_id, rt.trajectory[tr_id][len-1] )
+        //    rt.trajectory[tr_id][len-1] = 2 * rt.trajectory[tr_id][len-1];
+        //}
+        rt.real_time_simulation = setInterval(function () {
+            rt.update_state(S, S.config, 'plot_1');
+        }, S.config.refresh_rate);
+    });
+
+    $("#pause").click(function () {
+        //clearInterval(rt);
+        clearInterval(rt.real_time_simulation);
+    });
+
+    $("#play").click(function () {
+        rt.real_time_simulation = setInterval(function () {
+            rt.update_state(S, S.config, 'plot_1');
+        }, S.config.refresh_rate);
     });
 
     </script>

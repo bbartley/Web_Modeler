@@ -4,9 +4,14 @@
 
 .button img 
 {
-    /display: block;
+    display: block;
     margin: auto;
     height: 95%;
+}
+
+span
+{
+    display: inline-block;
 }
 
 .button 

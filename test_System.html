@@ -69,10 +69,11 @@
         //clearInterval(rt);
         clearInterval(rt.real_time_simulation);
         var len = rt.time.length;
-        for (var tr_id in rt.trajectory) {
-            window.console.log(len, tr_id, rt.trajectory[tr_id][len-1] )
-            rt.trajectory[tr_id][len-1] = 2 * rt.trajectory[tr_id][len-1];
-        }
+        rt.trajectory['G'][len - 1] = 2 * rt.trajectory[tr_id][len - 1];
+        //for (var tr_id in rt.trajectory) {
+        //    window.console.log(len, tr_id, rt.trajectory[tr_id][len-1] )
+        //    rt.trajectory[tr_id][len-1] = 2 * rt.trajectory[tr_id][len-1];
+        //}
         rt.real_time_simulation = setInterval(function () {
             rt.update_state(S, S.config, 'plot_1'); }, S.config.refresh_rate);
     });

@@ -19,7 +19,6 @@
         <div id="record" class="button"><img src="record.png" /></div>
     </div>
     <div>
-        <div id="apple" class="button"><img src="1-Ycx4Bq0pMf.jpg" /></div>
         <div id="cake" class="button"><img src="cake.jpg" /></div>
         <div id="grapes" class="button"><img src="grapes.jpg" /></div>
         <div id="pizza_slice" class="button"><img src="pizza_slice.jpg" /></div>
@@ -41,9 +40,9 @@
 	S.addSpecies('A',1,null);
 	S.addSpecies('B',1,null);
 	S.addSpecies('G',1,null);
-	S.addParameter('K', 1.);
+	S.addParameter('K', 2.3);
 	S.addParameter('delta', .1, 'hormonal delay');
-	S.addParameter('input', 1, 'glucose input from tissues');
+	S.addParameter('input', .01, 'glucose input from tissues');
 	S.addParameter('eta', .1, 'glucose output, ie, excretion');
 	S.addParameter('alpha', 1, 'glucagon sensitivity');
 	S.addParameter('beta', 1, 'insulin sensitivity');
@@ -64,45 +63,104 @@
 	S.interactions['third-order antagonist'].rules['g'].set('-beta*b');
 	S.addInteraction('third-order antagonist', ['A', 'B', 'G'], ['K', 'beta']);
 	
-	S.defineInteraction('input', ['g']);
-	S.interactions['input'].rules['g'].set('i');
-	S.addInteraction('input', ['G'], ['input']);
+
 	
-	//S.species['A'].rate_law.set('A * ( 1 / G * (K - A - B) - delta )')
+	var foods = ['cake', 'grapes', 'pizza_slice', 'rice', 'steak'];
+    boluses = [.1, .01, .15, .03, .3];
+    var GI_values = [1, 0.8, 0.5, 1, .1];
+    var GI_params = Array.apply(null, Array(GI_values.length)).map(function (_, i) { return 'GI' + i; });
+
+    S.defineInteraction('bolus absorption', ['g', 'i']);
+    S.interactions['bolus absorption'].rules['g'].set('gi*i');
+    S.interactions['bolus absorption'].rules['i'].set('-gi*i');
+    for (i_bolus in boluses) {
+        S.addSpecies(foods[i_bolus], 0, null);
+        S.addParameter(GI_params[i_bolus], GI_values[i_bolus]);
+        S.addInteraction('bolus absorption', ['G', foods[i_bolus]], [GI_params[i_bolus]]);
+    }
+    S.defineInteraction('basal glucose production', ['g']);
+    S.interactions['basal glucose production'].rules['g'].set('g_in');
+    S.addInteraction('basal glucose production', ['G'], ['input']);
+    S.compile();
+    console.log(S.species['G'].rate_law.expression.toString());
+    //console.log(GI_params);
+    //var input = new math.expression.node.SymbolNode('input');
+	//for (i_bolus in boluses) {
+	//    S.addSpecies(foods[i_bolus], 0, null);
+	//    GI_params[i_bolus] = 'GI' + i_bolus;
+	//    S.addParameter(GI_params[i_bolus], GI_values[i_bolus]);
+    //    S.addInteraction('first order decay', [foods[i_bolus]], [GI_params[i_bolus]]);
+	//    input = new math.expression.node.OperatorNode('+', 'add', [input,
+    //        S._interactions[S._interactions.length - 1].rules[foods[i_bolus]].expression.clone()]);
+	//    console.log(input.toString());
+	//}
+
+	//var input_vars = foods.slice(0);
+	//var i = input_vars.push('G');
+	//S.defineInteraction('input', input_vars, GI_params);
+	//S.interactions['input'].rules['G'].set(input.toString());
+    //i = GI_params.push('input');
+    //console.log(input_vars);
+    //S.addInteraction('input', input_vars, GI_params);
+
+
+    //S.species['A'].rate_law.set('A * ( 1 / G * (K - A - B) - delta )')
 	//S.species['B'].rate_law.set('B * ( G * (K - A - B) - delta )')
 	//S.species['G'].rate_law.set('input + alpha * A - beta * B - eta * G')
 
     C = new Config();
     S.compile();
     console.log(S.model);
+
     var rt = S.simulate_in_real_time('plot_1', C);
 
-    $("#apple").click(function () {
-        //clearInterval(rt);
-        clearInterval(rt.real_time_simulation);
-        var len = rt.time.length;
-        rt.trajectory['G'][len - 1] = 2 * rt.trajectory['G'][len - 1];
-        //for (var tr_id in rt.trajectory) {
-        //    window.console.log(len, tr_id, rt.trajectory[tr_id][len-1] )
-        //    rt.trajectory[tr_id][len-1] = 2 * rt.trajectory[tr_id][len-1];
-        //}
-        rt.real_time_simulation = setInterval(function () {
-            rt.update_state(S, S.config, 'plot_1'); }, S.config.refresh_rate);
+    button_elements = $();
+    button_data = [];
+    for (var i_food in foods) {
+        var i = button_data.push({
+            bolus_type: foods[i_food],
+            bolus_size: boluses[i_food],
+            gi: GI_values[i_food]
+        });
+        button_elements = button_elements.add($('#' + foods[i_food]));
+    }
+    $.map(button_elements, function (element, i_element) {
+        var element_id = $(element).attr('id');
+        $(element).click(button_data[i_element], function (event) {
+            console.log(event.data.bolus_size);
+            console.log('click');
+            clearInterval(rt.real_time_simulation);
+            var len = rt.time.length;
+            rt.trajectory[event.data.bolus_type][len - 1] = rt.trajectory[event.data.bolus_type][len - 1] + event.data.bolus_size;
+            rt.real_time_simulation = setInterval(function () {
+                rt.update_state(S, S.config, 'plot_1');
+            }, S.config.refresh_rate);
+        });
     });
+    //throw new Error;
+    //for (var i_food in foods) {
+    //    console.log(foods[i_food]);
+    //    $('#' + foods[i_food]).click(function (i_f) {
+    //        console.log(foods[i_f], boluses[i_f]);
+    //        alert(foods[i_f] + boluses[i_f]);
+    //        clearInterval(rt.real_time_simulation);
+    //        var len = rt.time.length;
+    //        rt.trajectory[foods[i_food]][len - 1] = rt.trajectory[foods[i_f]][len - 1] + boluses[i_f];
+    //        rt.real_time_simulation = setInterval(function () {
+    //            rt.update_state(S, S.config, 'plot_1');
+    //        }, S.config.refresh_rate);
+    //    });
+    //}
 
-    $("#cake").click(function () {
-        //clearInterval(rt);
-        clearInterval(rt.real_time_simulation);
-        var len = rt.time.length;
-        rt.trajectory['G'][len - 1] = 0.5 * rt.trajectory['G'][len - 1];
-        //for (var tr_id in rt.trajectory) {
-        //    window.console.log(len, tr_id, rt.trajectory[tr_id][len-1] )
-        //    rt.trajectory[tr_id][len-1] = 2 * rt.trajectory[tr_id][len-1];
-        //}
-        rt.real_time_simulation = setInterval(function () {
-            rt.update_state(S, S.config, 'plot_1');
-        }, S.config.refresh_rate);
-    });
+
+    //$("#cake").click(function () {
+    //    clearInterval(rt.real_time_simulation);
+    //    var len = rt.time.length;
+    //    rt.trajectory['cake'][len - 1] = rt.trajectory['cake'][len - 1] + 1;
+    //    rt.real_time_simulation = setInterval(function () {
+    //        rt.update_state(S, S.config, 'plot_1');
+    //    }, S.config.refresh_rate);
+    //});
 
     $("#pause").click(function () {
         //clearInterval(rt);

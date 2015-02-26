@@ -131,7 +131,11 @@ function Parameter(value, name) {
 	@property {String} name
 	*/
 	this.name = name;
+
+	this.set = function (value) {
+	    this.value = value;
 	}
+}
 
 
 /**
@@ -548,7 +552,7 @@ function Simulation(system, solution) {
 			},
 			yaxis: {
 				min: 0,
-				max: 10
+				max: 2.5
 			},
 			xaxis: {
 				min: t_min,
@@ -915,9 +919,7 @@ var System = {
 			//this.parser.eval(simulation_vars[i_y] + "=" + y[i_y])
 			scope[species_ids[i_y]] = y[i_y];
 		}
-		if (t==0) {
-			console.log(scope);
-		}
+		//console.log(scope);
 		for (p in system.parameters) {
 			//scope[p] = this.parameters[p].value;
 			scope[p] = system.parameters[p].value;

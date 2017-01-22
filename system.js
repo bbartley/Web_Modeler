@@ -394,6 +394,15 @@ function Interaction(base, v_args, p_args) {
 	// }
 }
 
+
+/**
+*/
+var Plots = [{
+    DOM_element: '',
+    species: [],
+    plot_config: {}
+}];
+
 /**
 Simulation objects contain the results of a dynamic simulation of a model system.
 @class Simulation
@@ -431,7 +440,9 @@ function Simulation(system, solution) {
 			}
 		}
 	}
-		
+
+    /**
+	*/
 	this.real_time_simulation = null;
 			
 	/**
@@ -492,25 +503,34 @@ function Simulation(system, solution) {
 		}
 		return this;
 	}
-	
+
+    
 	/**
 	Plot Simulation trajectories.
 	@method plot
 	@param div DOM element in which the plot will be inserted into html page
 	*/
-	this.plot = function(div, plot_config) {
-		var species = Object.keys(this.trajectory);
-		var data = [];
-		for (i_sp in species) {
-			var series = numeric.transpose([this.time, this.trajectory[species[i_sp]]]);
-			data.push({data:series});
-		}
+	this.plot = function(plots) {
+        //DOM_elements, species, plot_config
+	    for (i_plot in plots) {
+	        var DOM_element = plots[i_plot]['DOM_element'];
+	        var species = plots[i_plot]['species'];
+	        var plot_config = plots[i_plot]['plot_config'];
+	        var data = [];
+	        for (i_sp in species) {
+	            var series = numeric.transpose([this.time, this.trajectory[species[i_sp]]]);
+	            data.push({ label: species[i_sp], data: series });
 
-
-		$(function() { $.plot("#" + div, data, plot_config); });
+	        }
+	        if (i_plot == 0) {
+	            data.push({ color: 'gray', data: [[0, 0.8], [1000, 0.8]] });
+	            data.push({ color: 'gray', data: [[0, 1.2], [1000, 1.2]] });
+	        }
+	        $(function () { $.plot("#" + DOM_element, data, plot_config); });
+	    }
 	}
 	
-	this.update_state = function(system, config, div) {
+	this.update_state = function(system, config, plots) {
 		// Construct and initial values vector for the integrator 
 		var initial_values = [];
 		for (var id_tr in this.trajectory) {
@@ -528,10 +548,6 @@ function Simulation(system, solution) {
 			var i_y = Object.keys(this.trajectory).indexOf(id_tr);
 			this.trajectory[id_tr] = this.trajectory[id_tr].concat(y[i_y]);
 		}
-		// Update the System's state
-		//for (var id_sp in system.species) {
-		//	system.species[id_sp].value = this.trajectory[id_sp][this.trajectory[id_sp].length-1];
-		//}
 		
 		// Update the time vector
 		var t_offset = this.time[this.time.length-1];
@@ -546,20 +562,11 @@ function Simulation(system, solution) {
 
 		var t_min = this.time[0];
 		var t_max = this.time[0] + config.buffer_size;
-		var plot_config = {
-			series: {
-				shadowSize: 0	// Drawing is faster without shadows
-			},
-			yaxis: {
-				min: 0,
-				max: 2.5
-			},
-			xaxis: {
-				min: t_min,
-				max: t_max
-			}
-		}		
-		this.plot(div, plot_config);
+		for (i_p in plots) {
+		    plots[i_p]['plot_config']['xaxis']['min'] = t_min;
+		    plots[i_p]['plot_config']['xaxis']['max'] = t_max;
+		}
+		this.plot(plots);
 	}
 }
 
@@ -575,7 +582,7 @@ function Config() {
 	this.t_plus = [0];
 	this.t_minus = [0];
 	this.run_time = 10000; // maximum animation time in milliseconds
-	this.fps = 80;
+	this.fps = 40;
 	this.refresh_rate = 1/this.fps * 1000;   // milliseconds
 	this.buffer_size = 10;  // simulation time
 	//this.t_scale = 10;  // 1 second of clock time corresponds to 10 seconds simulation time
@@ -957,57 +964,15 @@ var System = {
 		return sol;
 	},
 	
-	simulate_in_real_time: function(div) {
+	simulate_in_real_time: function(plots) {
 		var state_history = new Simulation(this, null);
 		var sys = this;
 		state_history.real_time_simulation = setInterval(function() { 
-			state_history.update_state(sys, sys.config, div); },
+			state_history.update_state(sys, sys.config, plots); },
 			sys.config.refresh_rate);
 		return state_history;
 	}
 
-	// simulate_in_real_time: function(div, run_time, config) {
-        // var t_step = config.refresh_rate / 1000 * config.t_scale;  // in units of seconds
-		// var i_stop  = run_time / t_step;
-		// var state_history = new Simulation(null, null);
-		// console.log(state_history);
-		// // Initialize state vector from the current value of Species objects 
-		// var initial_state = [];
-		// for (var sp in this.species) {
-			// initial_state.push(this.species[sp].value);
-		// }
-		// for (var i=0; i <= i_stop; i++) {
-			// var solution = numeric.dopri(0,t_step,initial_state,this.dY,1e-6,10000, function() {return -1}, [
-					// this]);
-			// var new_state = new Simulation(Object.keys(this.species), solution);
-			// // Update the value of Species objects to their final value at end of simulation
-			// var initial_state = [];
-			// for (var sp in this.species) {
-				// var new_value = new_state.trajectory[sp][new_state.trajectory[sp].length-1];
-				// this.species[sp].value = new_value;
-				// initial_state.push(new_value);
-			// }
-			// // Update the System's cumulative state history.
-			// // If the state history exceeds the buffer, remove stale
-			// // part of the state history
-			// console.log(state_history);
-			// if (state_history.time.length == 0) {
-				// state_history = new_state;
-			// } else {
-				// var time_window = state_history.time[state_history.time.length-1] - state_history[0];
-				// if (time_window < config.buffer_size) {
-					// state_history = state_history.concat(new_state);
-				// } else {
-					// state_history = state_history.concat(new_state);
-					// state_history = state_history.trim(config.buffer_size);
-				// }
-			// }
-			// //console.log(initial_state);
-			// //console.log(new_state);
-			// //console.log(state_history);
-			// //throw new Error();
-		// }
-		// return state_history;
-	// }
+
 }	
 

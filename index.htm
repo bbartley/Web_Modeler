@@ -1,89 +1,63 @@
-<html>
+﻿<html>
 <title></title>
 <meta charset="utf-8">
 
 <head>
+    <link rel="stylesheet" href="jquery-ui-1.11.4.custom/jquery-ui.min.css">
+    <link rel="stylesheet" href="style.css">
     <script type="text/javascript" src="flot/jquery.js"></script>
+    <script type="text/javascript" src="flot/jquery.flot.js"></script>
 	<script type="text/javascript" src="jquery-ui-1.11.4.custom/jquery-ui.min.js"></script>
-	<link rel="stylesheet" href="jquery-ui-1.11.4.custom/jquery-ui.min.css">
-	<link rel="stylesheet" href="style.css">
-	<script>
-	$(function() {
-		$( "#slider_1" ).slider({
-			range: true,
-			min: 0,
-			max: 500,
-			value: 0,
-			slide: function( event, ui ) {
-				$( "#amount" ).val( ui.value );
-			}
-			//$( "#slider" ).slider( "value")
-			//console.log(ui.values);
-		});
-		$( "#amount" ).val( $("#slider_1").slider("value") );
-	});
-	$(function() {
-		$( "#slider_2" ).slider({
-			range: true,
-			min: 0,
-			max: 500,
-			value: 0,
-			slide: function( event, ui ) {
-				$( "#amount" ).val( ui.value );
-			}
-			//$( "#slider" ).slider( "value")
-			//console.log(ui.values);
-		});
-		$( "#amount" ).val( $("#slider_1").slider("value") );
-		$( "#amount" ).val( $("#slider_2").slider("value") );
-
-	});
-	$(function() {
-		var spinner = $( "#spinner" ).spinner();
-	});
-	</script>
+    <script type="text/javascript" src="ui-elements.js"></script>
+    <script type="text/javascript" src="numeric-1.2.6.js"></script>
+    <script type="text/javascript" src="math.js"></script>
+    <script type="text/javascript" src="system.js"></script>
 </head>
 
 <body>
 	<div style="width:1200px;">
 		<div id="col1" style="float:left; width:70%;">
-			<div id="plot_1" style="background-color:#cccccc; width:100%; height: 400px;"></div>
-			<div id="plot_2" style="background-color:#dddddd; width:100%; height: 400px;"></div>
+			<div id="plot_1" style="width:100%; height: 400px;"></div>
+			<div id="plot_2" style="width:100%; height: 400px;"></div>
+            <div id="plot_3" style="width:100%; height: 400px;"></div>
 		</div>	
 		<div id="col2" style="float:left; width:30%;">
-			Simulation Controls
+
+            <h3>Simulation Controls</h3>
 			<div id="simulation controls">
 				<span id="play" class="button" ><img src="play.png"/></span>
 				<span id="pause" class="button"><img src="pause.png"/></span>
-				<span id="record" class="button"><img src="record.png" /></span>
 			</div>
-			Bolus Inputs
+
+            <h3>Bolus Inputs</h3>
 			<div id="bolus inputs" style="margin-top:25px;">
 				<span id="cake" class="button"><img src="cake.jpg"/></span>
-
-
 				<span id="grapes" class="button"><img src="grapes.jpg" /></span>
 				<span id="pizza_slice" class="button"><img src="pizza_slice.jpg" /></span>
 				<span id="rice" class="button"><img src="rice.jpg" /></span>
-				<span id="steak" class="button"><img src="steak.jpg" /></span>
 			</div>
-			Insulin Input
-			<label for="spinner">Select a value:</label>
-			<div id="insulin input" style="margin-top:25px;">
-				<span><input id="spinner" name="value"></span>
-				<span id="insulin" class="button"><img src="syringe.jpg" /></span>
-			</div>
-			<p>
-				<label for="amount">Price range:</label>
-				<input type="text" id="amount" readonly style="border:0; color:#f6931f; font-weight:bold;">
+
+            <h3>Insulin Production (Type 1)</h3>
+           	<p>
+				<input type="text" id="amount" readonly style="border:0; font-weight:bold;">
 			</p>
-			<div style="width:50px; margin-left:10%;">
-				<div id="slider_1" style="align:center;"></div>
-			</div>
+            <div style="width:50px; margin-left:10%;">
+                <div id="slider_1" style="align:center;"></div>
+            </div>
+
+            <h3>Insulin Resistance (Type 2)</h3>
 			<div style="width:50px; margin-top:50px;margin-left:10%;">
 				<div id="slider_2" style="align:center;"></div>
 			</div>
-			
+
+            <h3>Insulin Input</h3>
+            <label for="spinner">Select a dose (units are in ccs):</label>
+            <div id="insulin input" style="margin-top:25px; display:inline-block; ">
+                <span id="glargine" class="button" style="vertical-align:middle;text-align:center;border:thin solid black;"><img src="lantus_vial_75px.png" /><p>Lantus</p></span>
+                <span style="vertical-align:middle; width:20%; border:thin solid black;"><input id="glargine_spinner" name="value" value="0" style="width:25%;" /></span>
+                <span id="novolog" class="button" style="vertical-align:middle;text-align:center;border:thin solid black;"><img src="novolog_vial_75px.png" /><p>NovoLog</p></span>
+                <span style="vertical-align:middle; width:20%; border:thin solid black;"><input id="novolog_spinner" name="value" value="0" style="width:100%; align-content:right;" /></span>
+            </div>			
 
 		</div>
 	</div>
@@ -91,3 +65,6 @@
 
 	
 </body>
+<foot>
+    <script type="text/javascript" src="diabetes.js"></script>
+</foot>

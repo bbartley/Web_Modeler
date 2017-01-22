@@ -43,7 +43,7 @@
 	S.addSpecies('A',1,null);
 	S.addSpecies('B',1,null);
 	S.addSpecies('G',1,null);
-	S.addParameter('K', 2.3);
+	S.addParameter('K', 4.1);
 	S.addParameter('delta', .1, 'hormonal delay');
 	S.addParameter('input', .01, 'glucose input from tissues');
 	S.addParameter('eta', .1, 'glucose output, ie, excretion');
@@ -126,6 +126,7 @@
             gi: GI_values[i_food]
         });
         button_elements = button_elements.add($('#' + foods[i_food]));
+        console.log(button_elements);
     }
     $.map(button_elements, function (element, i_element) {
         var element_id = $(element).attr('id');
